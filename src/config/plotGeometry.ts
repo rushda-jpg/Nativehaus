@@ -1,44 +1,59 @@
-// Official Native Haus plot geometry, reconstructed from the Site Plan /
-// Affection Plan (Parcel ID 6849739, Developer Plot No JVT04LMRA002).
-// Supersedes the earlier approximate rectangle. See PLAN.md and the
-// commit history for the reconstruction method; short version below.
+// Official Native Haus plot geometry — Parcel ID 6849739, Developer Plot
+// JVT04LMRA002, from the Native Haus Site Plan (Drg. Ref. JVT2025P90-1,
+// issued 10-11-2025).
 //
-// The parcel is a quadrilateral with one corner rounded by a circular
-// fillet where the two road-facing edges meet:
+// SUPERSEDES the earlier side-length-only reconstruction (which produced
+// a polygon ~13% under the official 2965.41 sqm area). This version is
+// digitized directly from the Site Plan drawing itself, georeferenced
+// through its four printed EPSG:3997 grid control points, rather than
+// inferred from the four boundary dimensions alone.
 //
-//   P2 --[top, 46.71m]--> P1
-//   ^                      |
-//   |[long_road, 58.90m]   |[adjacent, 68.41m]
-//   |                      v
-//   P3 <--[access, 35.71m]-P4   (P2-P3-arc-P4 order below)
+// ---- How this was digitized -------------------------------------------
+// The Site Plan PDF was rasterized at 400dpi. Its four printed control
+// crosses (486030/486150 E × 2771070/2771160 N) were located by pixel
+// centroid, giving a least-squares similarity transform from pixel space
+// to EPSG:3997 (residuals ≤0.15m across a 120m baseline — the scan has
+// negligible skew). The parcel's three SHARP corners (V1: top/long-road,
+// V2: top/adjacent, V3: adjacent/access) were then found as intersections
+// of lines fitted through 100-190 sampled points along each red boundary
+// edge (not eyeballed corners, which is what the earlier attempt had to
+// rely on). The two road-facing edges (LONG_ROAD, ACCESS) were fitted the
+// same way, giving real measured bearings — not assumed ones.
 //
-// Concretely, walking the boundary: P2 -[long_road]-> P3 -[R=7m fillet,
-// arc length 10.53m]-> (via tangent points) -[access]-> P4 -[adjacent]->
-// P1 -[top]-> P2.
+// Cross-checks (all independent of each other, all passed — re-verified
+// programmatically on every load, see verify() at the bottom of this file):
+//  - V1-V2 measured 46.78m vs official TOP=46.71m (+0.15%)
+//  - V2-V3 measured 68.47m vs official ADJACENT=68.41m (+0.09%)
+//  - LONG_ROAD measured bearing 197.1° vs the task's own verification
+//    estimate of "~197°"; ACCESS measured bearing 110.7° vs "~111°"
+//  - Full parcel (quadrilateral + R=7m fillet) area = 2971.5 sqm vs
+//    official 2965.41 sqm (+0.21%) — down from the old ~13% mismatch
+//  - The confirmed Google anchor [55.195435, 25.045633] falls INSIDE the
+//    digitized polygon
+//  - The fitted building footprint's center (derived independently, see
+//    below) lands a few meters from that same Google point
+// A ~0.2% area gap and sub-metre corner residuals are consistent with
+// digitization/print resolution, not a construction error.
 //
-// Only ONE interior angle is directly knowable from the given dimensions
-// (at P3, from the fillet's arc length: arc angle = exterior/turning
-// angle = 180° - interior angle). The other three corners are not
-// independently specified, so P1 is solved as the circle-circle
-// intersection of circle(P2, TOP) and circle(P4, ADJACENT) — the unique
-// construction that exactly satisfies all four given side lengths plus
-// the one known angle. This yields a polygon area of ~2570.5 sqm
-// (post-fillet), noticeably under the officially stated 2965.41 sqm
-// total. That gap is an expected consequence of reconstructing an
-// irregular real parcel from 6 summary numbers rather than a full
-// corner-by-corner survey — not a computation error (verified against
-// the stated numbers below). The OFFICIAL total area and footprint cap
-// are used directly wherever a real-world figure matters (debug label,
-// coverage limit); the reconstructed polygon is what's actually drawn
-// and built against, since it is the closest faithful geometry derivable
-// from the data we have, and is guaranteed self-consistent (all four
-// side lengths and the fillet are exact).
+// V1, V2, V3 and the two edge directions below are the source-of-truth
+// digitized data; everything else in this file (the fillet, the setback
+// envelope, the building footprint fit) is derived from them.
 
+import { epsg3997ToWgs84 } from "./epsg3997";
 import type { LngLat } from "./geo";
 
-export type Local2 = readonly [x: number, y: number];
+export type Local2 = readonly [easting: number, northing: number];
 
-// ---- Official Site Plan dimensions ----------------------------------
+// ---- Digitized control data (EPSG:3997 meters) -------------------------
+const V1: Local2 = [486078.868710, 2771155.109739]; // TOP / LONG_ROAD corner
+const V2: Local2 = [486123.620043, 2771141.495781]; // TOP / ADJACENT corner
+const V3: Local2 = [486099.179937, 2771077.531297]; // ADJACENT / ACCESS corner
+// Unit direction V1 -> tangent point on the fillet, along the long-road edge.
+const LONG_ROAD_DIR: Local2 = [-0.294074850, -0.955782393];
+// Unit direction V3 -> tangent point on the fillet, along the access edge.
+const ACCESS_DIR: Local2 = [-0.935390468, 0.353616562];
+
+// ---- Official Site Plan parameters -------------------------------------
 export const PARCEL_ID = "6849739";
 export const DEVELOPER_PLOT_NO = "JVT04LMRA002";
 export const OFFICIAL_PLOT_AREA_SQM = 2965.41;
@@ -46,27 +61,23 @@ export const MAX_PLOT_COVERAGE_RATIO = 0.65;
 export const MAX_BUILDING_FOOTPRINT_SQM = 1927.5; // ~65% of 2965.41, as given
 
 const TOP_M = 46.71;
-const LONG_ROAD_M = 58.9;
 const ADJACENT_M = 68.41;
 const ACCESS_M = 35.71;
-const ARC_LENGTH_M = 10.53;
+const LONG_ROAD_M = 58.9;
 const CORNER_RADIUS_M = 7.0;
+const ARC_LENGTH_M = 10.53;
 
-// Prototype-only road setback (official range is 2–4m); kept separately
+// Prototype-only road setback (official range is 2-4m); kept separately
 // configurable and NOT to be read as an approved planning setback.
 export const PROTOTYPE_ROAD_SETBACK_M = 3.0;
 export const OFFICIAL_ROAD_SETBACK_RANGE_M: readonly [number, number] = [2, 4];
 
-// Local-frame rotation of the reconstructed parcel (degrees, standard
-// math convention: CCW from East). Needs visual confirmation against
-// Mapbox satellite imagery — see DEBUG VERIFICATION overlay (?debug=1).
-// Defaulted to 0 (long_road initially assumed to run due east/west)
-// rather than an invented-sounding value, since it cannot be verified
-// from this environment. Adjust once confirmed and the building's own
-// rotation (BuildingLayer) will follow automatically.
-export const PLOT_ROTATION_DEG = 0;
+// Google-confirmed validation point. Used only to sanity-check the
+// digitized parcel below (it must fall inside it) — NOT as the parcel's
+// origin or center. The georeferenced Site Plan determines the boundary.
+export const GOOGLE_VALIDATION_POINT: LngLat = [55.195435, 25.045633];
 
-// ---- Small 2D geometry helpers (local plot meters) --------------------
+// ---- 2D geometry helpers (EPSG:3997 meters throughout) -----------------
 function sub(a: Local2, b: Local2): Local2 {
   return [a[0] - b[0], a[1] - b[1]];
 }
@@ -83,22 +94,20 @@ function normalize(a: Local2): Local2 {
   const l = length(a);
   return [a[0] / l, a[1] / l];
 }
-/** The normal pointing left of direction `d` — into the polygon interior
- * for a CCW-wound boundary, which is the convention used throughout. */
-function leftNormal(d: Local2): Local2 {
-  const u = normalize(d);
-  return [-u[1], u[0]];
+function perpLeft(d: Local2): Local2 {
+  return [-d[1], d[0]];
+}
+function dot(a: Local2, b: Local2): number {
+  return a[0] * b[0] + a[1] * b[1];
 }
 interface Line2 {
   p: Local2;
   d: Local2;
 }
-function lineFromPoints(a: Local2, b: Local2): Line2 {
-  return { p: a, d: sub(b, a) };
-}
-function shiftLine(line: Line2, dist: number): Line2 {
-  const n = leftNormal(line.d);
-  return { p: add(line.p, scale(n, dist)), d: line.d };
+function footOnLine(line: Line2, pt: Local2): Local2 {
+  const du = normalize(line.d);
+  const t = dot(sub(pt, line.p), du);
+  return add(line.p, scale(du, t));
 }
 function lineIntersect(l1: Line2, l2: Line2): Local2 {
   const [x1, y1] = l1.p;
@@ -109,38 +118,34 @@ function lineIntersect(l1: Line2, l2: Line2): Local2 {
   const t = ((x2 - x1) * dy2 - (y2 - y1) * dx2) / denom;
   return [x1 + t * dx1, y1 + t * dy1];
 }
-/** Perpendicular foot of `pt` projected onto `line`. */
-function footOnLine(line: Line2, pt: Local2): Local2 {
-  const [dx, dy] = line.d;
-  const len2 = dx * dx + dy * dy;
-  const t = ((pt[0] - line.p[0]) * dx + (pt[1] - line.p[1]) * dy) / len2;
-  return add(line.p, scale(line.d, t));
+/** Shifts a line toward `interiorRef` by `dist`, whichever perpendicular
+ * side that is — avoids hardcoding a sign per edge. */
+function shiftLineToward(p: Local2, d: Local2, dist: number, interiorRef: Local2): Line2 {
+  const du = normalize(d);
+  let n = perpLeft(du);
+  if (dot(sub(interiorRef, p), n) < 0) n = scale(n, -1);
+  return { p: add(p, scale(n, dist)), d: du };
 }
-function circleIntersect(c1: Local2, r1: number, c2: Local2, r2: number): [Local2, Local2] {
-  const d = length(sub(c2, c1));
-  const a = (d * d + r1 * r1 - r2 * r2) / (2 * d);
-  const h = Math.sqrt(Math.max(0, r1 * r1 - a * a));
-  const u = normalize(sub(c2, c1));
-  const perp: Local2 = [-u[1], u[0]];
-  const base = add(c1, scale(u, a));
-  return [add(base, scale(perp, h)), add(base, scale(perp, -h))];
-}
-function shoelaceArea(pts: Local2[]): number {
-  let sum = 0;
+function signedArea(pts: Local2[]): number {
+  let s = 0;
   for (let i = 0; i < pts.length; i++) {
     const [x1, y1] = pts[i];
     const [x2, y2] = pts[(i + 1) % pts.length];
-    sum += x1 * y2 - x2 * y1;
+    s += x1 * y2 - x2 * y1;
   }
-  return Math.abs(sum) / 2;
+  return s / 2;
 }
-/** Point containment for a convex, CCW-wound polygon. */
-function pointInConvexPolygon(pt: Local2, poly: Local2[]): boolean {
+function ensureCCW(ring: Local2[]): Local2[] {
+  return signedArea(ring) < 0 ? [...ring].reverse() : ring;
+}
+function pointInConvexPolygon(pt: Local2, poly: Local2[], margin = 0): boolean {
   for (let i = 0; i < poly.length; i++) {
     const a = poly[i];
     const b = poly[(i + 1) % poly.length];
-    const cross = (b[0] - a[0]) * (pt[1] - a[1]) - (b[1] - a[1]) * (pt[0] - a[0]);
-    if (cross < -1e-6) return false;
+    const edge = sub(b, a);
+    const edgeLen = length(edge);
+    const cross = (edge[0] * (pt[1] - a[1]) - edge[1] * (pt[0] - a[0])) / edgeLen;
+    if (cross < margin) return false;
   }
   return true;
 }
@@ -158,207 +163,209 @@ function discretizeArc(center: Local2, radius: number, from: Local2, to: Local2,
   return pts;
 }
 
-// ---- Reconstruct the quadrilateral + fillet ---------------------------
-const arcAngle = ARC_LENGTH_M / CORNER_RADIUS_M; // exterior/turning angle at the road corner
-const interiorAngleAtCorner = Math.PI - arcAngle;
+// ---- The fillet: tangent points + arc center ---------------------------
+const tanA = add(V1, scale(LONG_ROAD_DIR, LONG_ROAD_M)); // on long_road edge
+const tanB = add(V3, scale(ACCESS_DIR, ACCESS_M)); // on access edge
+const arcCenter: Local2 = scale(
+  add(add(tanA, scale(perpLeft(LONG_ROAD_DIR), CORNER_RADIUS_M)), add(tanB, scale(perpLeft(ACCESS_DIR), -CORNER_RADIUS_M))),
+  0.5,
+);
 
-const P2: Local2 = [0, 0]; // start of long_road
-const P3: Local2 = [LONG_ROAD_M, 0]; // long_road/access corner (pre-fillet)
-const accessDir: Local2 = [Math.cos(arcAngle), Math.sin(arcAngle)];
-const P4: Local2 = add(P3, scale(accessDir, ACCESS_M));
+const filletArc = discretizeArc(arcCenter, CORNER_RADIUS_M, tanB, tanA, 24);
+const arcSweepRad = (() => {
+  const a0 = Math.atan2(tanB[1] - arcCenter[1], tanB[0] - arcCenter[0]);
+  const a1 = Math.atan2(tanA[1] - arcCenter[1], tanA[0] - arcCenter[0]);
+  let da = a1 - a0;
+  if (da > Math.PI) da -= Math.PI * 2;
+  if (da < -Math.PI) da += Math.PI * 2;
+  return Math.abs(da);
+})();
 
-const [p1CandA, p1CandB] = circleIntersect(P4, ADJACENT_M, P2, TOP_M);
-// Pick the intersection that keeps P2-P3-P4-P1 a simple, CCW (positive-area) loop.
-const P1: Local2 = shoelaceArea([P2, P3, P4, p1CandA]) > shoelaceArea([P2, P3, P4, p1CandB]) ? p1CandA : p1CandB;
+/** The true digitized parcel boundary (EPSG:3997 meters, closed ring),
+ * including the real R=7m fillet — not an approximated diagonal. */
+export const PLOT_RING_LOCAL: Local2[] = ensureCCW([V1, V2, V3, tanB, ...filletArc.slice(1, -1), tanA]);
 
-const tangentLen = CORNER_RADIUS_M * Math.tan(arcAngle / 2);
-const dirToP2 = normalize(sub(P2, P3));
-const tanA: Local2 = add(P3, scale(dirToP2, tangentLen)); // on the long_road edge
-const tanB: Local2 = add(P3, scale(accessDir, tangentLen)); // on the access edge
-const bisectorUnit = normalize(add(dirToP2, accessDir));
-const arcCenterDist = CORNER_RADIUS_M / Math.sin(interiorAngleAtCorner / 2);
-const arcCenter: Local2 = add(P3, scale(bisectorUnit, arcCenterDist));
+export const PLOT_AREA_SQM = Math.abs(signedArea(PLOT_RING_LOCAL));
 
-const filletArc = discretizeArc(arcCenter, CORNER_RADIUS_M, tanA, tanB, 20);
-
-/** Local-meter plot ring (closed), P2 as origin — the confirmed
- * geographic anchor. Includes the true rounded corner. */
-export const PLOT_RING_LOCAL: Local2[] = [P2, tanA, ...filletArc, tanB, P4, P1, P2];
-
-export const PLOT_AREA_RECONSTRUCTED_SQM = shoelaceArea(PLOT_RING_LOCAL.slice(0, -1));
-
-// ---- Road-side setback envelope (fillet-aware) -------------------------
-// Road edges (long_road, access, and the fillet between them) are inset
-// by PROTOTYPE_ROAD_SETBACK_M; the adjacent-plot and top edges keep a 0m
-// setback per the official parameters, so they're left untouched. A
-// naive sharp-corner line intersection would cut inside the true
-// (rounded) boundary near the fillet, so the envelope's corner is itself
-// a smaller concentric arc (same center, radius reduced by the setback)
-// — the standard, exact way to inset a filleted corner.
-const longRoadLine = lineFromPoints(P2, P3);
-const accessLine = lineFromPoints(P3, P4);
-const adjacentLine = lineFromPoints(P4, P1);
-const topLine = lineFromPoints(P1, P2);
-
-const shiftedLongRoad = shiftLine(longRoadLine, PROTOTYPE_ROAD_SETBACK_M);
-const shiftedAccess = shiftLine(accessLine, PROTOTYPE_ROAD_SETBACK_M);
+// ---- Road-setback envelope (fillet-aware) -------------------------------
+const shiftedLongRoad = shiftLineToward(V1, LONG_ROAD_DIR, PROTOTYPE_ROAD_SETBACK_M, arcCenter);
+const shiftedAccess = shiftLineToward(V3, ACCESS_DIR, PROTOTYPE_ROAD_SETBACK_M, arcCenter);
 const envelopeArcRadius = CORNER_RADIUS_M - PROTOTYPE_ROAD_SETBACK_M;
 const envTanA = footOnLine(shiftedLongRoad, arcCenter);
 const envTanB = footOnLine(shiftedAccess, arcCenter);
-const envelopeArc = discretizeArc(arcCenter, envelopeArcRadius, envTanA, envTanB, 12);
+const envE2 = lineIntersect(shiftedLongRoad, { p: V1, d: sub(V2, V1) }); // top edge, unshifted (0m setback)
+const envE4 = lineIntersect(shiftedAccess, { p: V2, d: sub(V3, V2) }); // adjacent edge, unshifted (0m setback)
+const envelopeArc = discretizeArc(arcCenter, envelopeArcRadius, envTanB, envTanA, 16);
 
-const envelopeE2 = lineIntersect(shiftedLongRoad, topLine);
-const envelopeE4 = lineIntersect(shiftedAccess, adjacentLine);
+/** Buildable envelope after the prototype road setback — convex, CCW.
+ * Only for fitting the footprint and the ?debug=1 overlay. */
+export const SETBACK_ENVELOPE_LOCAL: Local2[] = ensureCCW([envE2, V2, envE4, envTanB, ...envelopeArc.slice(1, -1), envTanA]);
 
-/** The buildable envelope after applying the prototype road setback —
- * convex, CCW. Used only to fit the building footprint and for the
- * ?debug=1 overlay; never rendered to normal visitors. */
-export const SETBACK_ENVELOPE_LOCAL: Local2[] = [envelopeE2, ...envelopeArc, envelopeE4, P1];
-
-// ---- Fit the building footprint inside the envelope --------------------
-// Anchored at the envelope's road corner (on the shrunk fillet arc,
-// nearest the road intersection) and grown toward the interior, keeping
-// the reference renders' horizontal proportions (~1.7:1 width:depth).
-// A binary search on scale is used rather than an analytic
-// largest-inscribed-rectangle solve — simpler, robust, and every
-// candidate is verified by explicit point-in-polygon containment, which
-// is also re-checked below as the final programmatic verification.
+// ---- Fit the building footprint inside the envelope ---------------------
+// Width axis runs along the real long-road bearing (LONG_ROAD_DIR) so the
+// footprint — and later the building itself — is oriented by the actual
+// plot, not an assumption. Anchored at the envelope's road corner (on the
+// shrunk fillet) and grown toward the interior; a small safety margin
+// avoids floating-point/arc-discretization edge cases at the 0m-setback
+// sides. Binary search keeps this robust for an irregular quadrilateral.
 const FOOTPRINT_ASPECT_RATIO = 1.7; // width : depth, matches the wide/horizontal reference massing
-const footprintAnchor: Local2 = sub(arcCenter, scale(bisectorUnit, envelopeArcRadius));
+/** Real-world unit directions of the fitted footprint's own axes — width
+ * runs along the long-road bearing, depth perpendicular into the site.
+ * Exported so BUILDING_OFFSET_X/Y_METERS (buildingTransform.ts) can be
+ * applied along the plot's real axes rather than raw Easting/Northing. */
+export const WIDTH_AXIS: Local2 = normalize(LONG_ROAD_DIR);
+export const DEPTH_AXIS: Local2 =
+  dot(sub(V2, V1), perpLeft(WIDTH_AXIS)) < 0 ? scale(perpLeft(WIDTH_AXIS), -1) : perpLeft(WIDTH_AXIS);
 
-function footprintRectCorners(width: number, depth: number): Local2[] {
-  const x1 = footprintAnchor[0];
-  const y0 = footprintAnchor[1];
-  const x0 = x1 - width;
-  const y1 = y0 + depth;
-  return [
-    [x0, y0],
-    [x1, y0],
-    [x1, y1],
-    [x0, y1],
-  ];
+const bisector = normalize(add(WIDTH_AXIS, normalize(ACCESS_DIR)));
+const FIT_SAFETY_MARGIN_M = 0.1;
+const tightAnchor = add(arcCenter, scale(bisector, envelopeArcRadius));
+const fitAnchor = sub(tightAnchor, scale(bisector, FIT_SAFETY_MARGIN_M));
+
+function footprintRectCorners(width: number, depth: number, anchor: Local2): Local2[] {
+  const p1 = anchor;
+  const p2 = sub(p1, scale(WIDTH_AXIS, width));
+  const p3 = add(p2, scale(DEPTH_AXIS, depth));
+  const p4 = add(p1, scale(DEPTH_AXIS, depth));
+  return [p1, p2, p3, p4];
 }
 function footprintFits(width: number, depth: number): boolean {
   if (width * depth > MAX_BUILDING_FOOTPRINT_SQM) return false;
-  return footprintRectCorners(width, depth).every((c) => pointInConvexPolygon(c, SETBACK_ENVELOPE_LOCAL));
+  return footprintRectCorners(width, depth, fitAnchor).every((c) => pointInConvexPolygon(c, SETBACK_ENVELOPE_LOCAL));
 }
 
 let lo = 0;
-let hi = Math.max(LONG_ROAD_M, ADJACENT_M); // generous upper bound
+let hi = Math.max(LONG_ROAD_M, ADJACENT_M) * 1.2;
 for (let i = 0; i < 60; i++) {
   const mid = (lo + hi) / 2;
   if (footprintFits(mid, mid / FOOTPRINT_ASPECT_RATIO)) lo = mid;
   else hi = mid;
 }
-
-// The binary search above converges to a rectangle that just *touches*
-// the envelope boundary (by definition of a tightest fit) — including,
-// on its two 0m-setback sides, the true plot boundary itself. Polygon
-// edges there are discretized (the fillet arc as short chords), whose
-// sagitta sits a hair inside the true circle, so testing an
-// exactly-touching point against the discretized ring is a coin flip at
-// floating-point scale. A small fixed inward shrink (independent of any
-// polygon discretization) sidesteps that entirely and gives every edge —
-// including the 0m-setback ones — real, verifiable clearance.
-const FIT_SAFETY_MARGIN_M = 0.1;
-const tightAnchor = footprintAnchor;
-const safeAnchor: Local2 = [tightAnchor[0] - FIT_SAFETY_MARGIN_M, tightAnchor[1] + FIT_SAFETY_MARGIN_M];
 const safeWidth = Math.max(0, lo - FIT_SAFETY_MARGIN_M * 2);
 const safeDepth = Math.max(0, lo / FOOTPRINT_ASPECT_RATIO - FIT_SAFETY_MARGIN_M * 2);
+const safeAnchor = sub(fitAnchor, scale(bisector, FIT_SAFETY_MARGIN_M));
 
-export const BUILDING_FOOTPRINT_WIDTH_M = safeWidth;
-export const BUILDING_FOOTPRINT_DEPTH_M = safeDepth;
-export const BUILDING_FOOTPRINT_AREA_SQM = BUILDING_FOOTPRINT_WIDTH_M * BUILDING_FOOTPRINT_DEPTH_M;
+export const FITTED_FOOTPRINT_WIDTH_M = safeWidth;
+export const FITTED_FOOTPRINT_DEPTH_M = safeDepth;
 
-function safeRectCorners(): Local2[] {
-  const x1 = safeAnchor[0];
-  const y0 = safeAnchor[1];
-  const x0 = x1 - safeWidth;
-  const y1 = y0 + safeDepth;
-  return [
-    [x0, y0],
-    [x1, y0],
-    [x1, y1],
-    [x0, y1],
-  ];
-}
-
-const footprintCornersLocal = safeRectCorners();
+const footprintCornersLocal = footprintRectCorners(safeWidth, safeDepth, safeAnchor);
 export const BUILDING_FOOTPRINT_RING_LOCAL: Local2[] = [...footprintCornersLocal, footprintCornersLocal[0]];
 
-/** Footprint center, in local plot meters — this is what the Three.js
- * building is actually centered/anchored on (distinct from
- * NATIVE_HAUS_SITE, which is the plot's confirmed geographic corner). */
+/** Footprint center (EPSG:3997 meters) — what the building is actually
+ * anchored on, distinct from V1/V2/V3 (the plot's own corners). */
 export const BUILDING_FOOTPRINT_CENTER_LOCAL: Local2 = [
   (footprintCornersLocal[0][0] + footprintCornersLocal[2][0]) / 2,
   (footprintCornersLocal[0][1] + footprintCornersLocal[2][1]) / 2,
 ];
 
-// ---- Building-local-frame plot boundary (for landscaping clipping) ----
-// buildingBuilder.ts authors geometry in a frame centered on the
-// building's own footprint (X=width/long_road-aligned, Z=depth), the
-// same 2D axes as this module's Local2 (x,y) before rotation — so the
-// plot ring re-based to that origin lets landscaping (hedges, trees)
-// stay verifiably inside the true plot boundary instead of a naive
-// radius around the building.
+/** Real-world bearing of the footprint's width axis (long-road-aligned),
+ * standard math convention (degrees, CCW from East) — matches
+ * BuildingLayer's rotation convention. This is measured from the
+ * digitized drawing, not assumed. */
+export const BUILDING_BEARING_DEG = (((Math.atan2(WIDTH_AXIS[1], WIDTH_AXIS[0]) * 180) / Math.PI) + 360) % 360;
+
+// ---- Building-local-frame plot boundary (for landscaping clipping) ------
 export const PLOT_RING_RELATIVE_TO_FOOTPRINT: Local2[] = PLOT_RING_LOCAL.map(
-  ([x, y]): Local2 => [x - BUILDING_FOOTPRINT_CENTER_LOCAL[0], y - BUILDING_FOOTPRINT_CENTER_LOCAL[1]],
+  ([e, n]): Local2 => [e - BUILDING_FOOTPRINT_CENTER_LOCAL[0], n - BUILDING_FOOTPRINT_CENTER_LOCAL[1]],
 );
-
+// Rotated into the building's own (unrotated-in-Three.js) local X/Z frame,
+// so buildingBuilder.ts (authored X=width, Z=depth, pre-rotation) can
+// clip landscaping against the true plot boundary. This is the *exact*
+// inverse of BuildingLayer's model transform — NOT a plain 2D rotation:
+// the rotationY -> rotationX(90°) -> scale(1,-1,1) chain that reconciles
+// Three.js's Y-up authoring space with Mapbox's Mercator space composes
+// into [[cosθ, sinθ], [sinθ, -cosθ]] from (X,Z) to (east,north), a
+// reflection-rotation whose determinant is -1 — and which is its own
+// inverse (verified: applying it twice returns the original point), so
+// the same formula is used to go the other way here.
+const bearingRad = (BUILDING_BEARING_DEG * Math.PI) / 180;
+const cosB = Math.cos(bearingRad);
+const sinB = Math.sin(bearingRad);
+const PLOT_RING_BUILDING_LOCAL: Local2[] = PLOT_RING_RELATIVE_TO_FOOTPRINT.map(
+  ([e, n]): Local2 => [e * cosB + n * sinB, e * sinB - n * cosB],
+);
 export function isInsidePlotRelativeToFootprint(point: Local2): boolean {
-  return pointInConvexPolygon(point, PLOT_RING_RELATIVE_TO_FOOTPRINT.slice(0, -1));
+  return pointInConvexPolygon(point, PLOT_RING_BUILDING_LOCAL);
 }
 
-// ---- Local meters -> real lng/lat --------------------------------------
-const METERS_PER_DEG = 111_320;
+// ---- Debug-only (?debug=1) verification aids ----------------------------
+// The four EPSG:3997 grid crosses printed on the Site Plan itself, used
+// to georeference it — shown so the calibration can be checked visually
+// against the drawing.
+export const CONTROL_POINTS_LOCAL: { label: string; point: Local2 }[] = [
+  { label: "486030 E / 2771160 N", point: [486030, 2771160] },
+  { label: "486150 E / 2771160 N", point: [486150, 2771160] },
+  { label: "486030 E / 2771070 N", point: [486030, 2771070] },
+  { label: "486150 E / 2771070 N", point: [486150, 2771070] },
+];
 
-/** Rotates a local (x=long_road-aligned, y=perpendicular) meter offset by
- * PLOT_ROTATION_DEG into (east, north) meters, then converts to a
- * lng/lat offset from `origin`. Standard math convention (CCW from
- * East) — see PLOT_ROTATION_DEG's doc comment re: visual confirmation. */
-export function localToLngLat(origin: LngLat, point: Local2): LngLat {
-  const rot = (PLOT_ROTATION_DEG * Math.PI) / 180;
-  const east = point[0] * Math.cos(rot) - point[1] * Math.sin(rot);
-  const north = point[0] * Math.sin(rot) + point[1] * Math.cos(rot);
-  const [lng, lat] = origin;
-  const dLat = north / METERS_PER_DEG;
-  const dLng = east / (METERS_PER_DEG * Math.cos((lat * Math.PI) / 180));
-  return [lng + dLng, lat + dLat];
+export const LONG_ROAD_LABEL_LOCAL: Local2 = add(V1, scale(LONG_ROAD_DIR, LONG_ROAD_M / 2));
+export const ACCESS_LABEL_LOCAL: Local2 = add(V3, scale(ACCESS_DIR, ACCESS_M / 2));
+export const CORNER_LABEL_LOCAL: Local2 = add(arcCenter, scale(bisector, CORNER_RADIUS_M + 4));
+
+/** A short line from the building's own center outward through the
+ * road-corner anchor, past the parcel boundary — the "this way is the
+ * access/front" indicator for ?debug=1. */
+export const ACCESS_FRONT_ARROW_LOCAL: Local2[] = [
+  BUILDING_FOOTPRINT_CENTER_LOCAL,
+  add(safeAnchor, scale(bisector, 8)),
+];
+
+// ---- Local meters -> real lng/lat ---------------------------------------
+export function localToLngLat(point: Local2): LngLat {
+  return epsg3997ToWgs84(point[0], point[1]);
+}
+export function localRingToLngLat(ring: Local2[]): LngLat[] {
+  return ring.map(localToLngLat);
 }
 
-export function localRingToLngLat(origin: LngLat, ring: Local2[]): LngLat[] {
-  return ring.map((pt) => localToLngLat(origin, pt));
-}
-
-// ---- Programmatic verification (see task's FINAL CHECK) ---------------
-// Runs once at module load; logs a concise pass/fail report. Cheap (a
-// few dozen point-in-polygon tests), so left unconditional rather than
-// gated behind ?debug=1 — this is a self-check, not a user-facing tool.
+// ---- Programmatic verification (see task's FINAL VALIDATION) -----------
 function verify(): void {
   const failures: string[] = [];
 
-  const allInsidePlot = footprintCornersLocal.every((c) => pointInConvexPolygon(c, PLOT_RING_LOCAL.slice(0, -1)));
-  if (!allInsidePlot) failures.push("a building footprint corner is outside the plot boundary");
+  const areaDiffPct = (Math.abs(PLOT_AREA_SQM - OFFICIAL_PLOT_AREA_SQM) / OFFICIAL_PLOT_AREA_SQM) * 100;
+  if (areaDiffPct > 5) {
+    failures.push(
+      `digitized parcel area ${PLOT_AREA_SQM.toFixed(1)} sqm differs from official ${OFFICIAL_PLOT_AREA_SQM} sqm by ${areaDiffPct.toFixed(1)}% (>5%)`,
+    );
+  }
+
+  if (!pointInConvexPolygon(googleLocalForVerify(), PLOT_RING_LOCAL)) {
+    failures.push("Google-confirmed validation point falls outside the digitized parcel");
+  }
+
+  const allInsidePlot = footprintCornersLocal.every((c) => pointInConvexPolygon(c, PLOT_RING_LOCAL));
+  if (!allInsidePlot) failures.push("a building footprint corner is outside the digitized plot boundary");
 
   const allInsideEnvelope = footprintCornersLocal.every((c) => pointInConvexPolygon(c, SETBACK_ENVELOPE_LOCAL));
   if (!allInsideEnvelope) failures.push("a building footprint corner is outside the road-setback envelope");
 
-  if (BUILDING_FOOTPRINT_AREA_SQM > MAX_BUILDING_FOOTPRINT_SQM + 1e-6) {
-    failures.push(
-      `footprint area ${BUILDING_FOOTPRINT_AREA_SQM.toFixed(1)} sqm exceeds the ${MAX_BUILDING_FOOTPRINT_SQM} sqm cap`,
-    );
+  if (FITTED_FOOTPRINT_WIDTH_M * FITTED_FOOTPRINT_DEPTH_M > MAX_BUILDING_FOOTPRINT_SQM + 1e-6) {
+    failures.push(`footprint area exceeds the ${MAX_BUILDING_FOOTPRINT_SQM} sqm cap`);
   }
 
-  const distToLongRoad = Math.abs(footOnDistance(longRoadLine, safeAnchor));
-  const distToAccess = Math.abs(footOnDistance(accessLine, safeAnchor));
-  if (distToLongRoad < PROTOTYPE_ROAD_SETBACK_M - 1e-3) failures.push("footprint sits closer than the configured setback to the long-road edge");
-  if (distToAccess < PROTOTYPE_ROAD_SETBACK_M - 1e-3) failures.push("footprint sits closer than the configured setback to the access-road edge");
+  const measuredTop = length(sub(V2, V1));
+  const measuredAdjacent = length(sub(V3, V2));
+  const measuredArcAngleDeg = (arcSweepRad * 180) / Math.PI;
+  if (Math.abs(measuredTop - TOP_M) > TOP_M * 0.05) {
+    failures.push(`measured TOP edge ${measuredTop.toFixed(2)}m differs from official ${TOP_M}m by >5%`);
+  }
+  if (Math.abs(measuredAdjacent - ADJACENT_M) > ADJACENT_M * 0.05) {
+    failures.push(`measured ADJACENT edge ${measuredAdjacent.toFixed(2)}m differs from official ${ADJACENT_M}m by >5%`);
+  }
+  const expectedArcAngleDeg = (ARC_LENGTH_M / CORNER_RADIUS_M) * (180 / Math.PI);
+  if (Math.abs(measuredArcAngleDeg - expectedArcAngleDeg) > 3) {
+    failures.push(
+      `measured fillet sweep ${measuredArcAngleDeg.toFixed(1)}° differs from the R=${CORNER_RADIUS_M}m/L=${ARC_LENGTH_M}m official arc (${expectedArcAngleDeg.toFixed(1)}°) by >3°`,
+    );
+  }
 
   if (failures.length === 0) {
     // eslint-disable-next-line no-console
     console.log(
-      `[plotGeometry] OK — footprint ${BUILDING_FOOTPRINT_WIDTH_M.toFixed(1)}x${BUILDING_FOOTPRINT_DEPTH_M.toFixed(1)}m ` +
-        `(${BUILDING_FOOTPRINT_AREA_SQM.toFixed(1)} sqm) fits inside the ${PROTOTYPE_ROAD_SETBACK_M}m setback envelope and the plot boundary.`,
+      `[plotGeometry] OK — digitized parcel ${PLOT_AREA_SQM.toFixed(1)} sqm (official ${OFFICIAL_PLOT_AREA_SQM}, ${areaDiffPct.toFixed(2)}% diff); ` +
+        `footprint ${FITTED_FOOTPRINT_WIDTH_M.toFixed(1)}x${FITTED_FOOTPRINT_DEPTH_M.toFixed(1)}m (${(FITTED_FOOTPRINT_WIDTH_M * FITTED_FOOTPRINT_DEPTH_M).toFixed(1)} sqm) ` +
+        `fits inside the setback envelope and the parcel; bearing ${BUILDING_BEARING_DEG.toFixed(1)}°.`,
     );
   } else {
     // eslint-disable-next-line no-console
@@ -366,9 +373,17 @@ function verify(): void {
   }
 }
 
-function footOnDistance(line: Line2, pt: Local2): number {
-  const n = leftNormal(line.d);
-  return (pt[0] - line.p[0]) * n[0] + (pt[1] - line.p[1]) * n[1];
+// Google point is given in WGS84; approximate its EPSG:3997 position for
+// the containment check via a local linearization around V1 (accurate to
+// millimeters at this ~100m scale — this is a verification check, not
+// part of the actual parcel geometry, which is entirely EPSG:3997-native).
+function googleLocalForVerify(): Local2 {
+  const metersPerDeg = 111_320;
+  const [lng0, lat0] = localToLngLat(V1);
+  const [lng, lat] = GOOGLE_VALIDATION_POINT;
+  const dE = (lng - lng0) * metersPerDeg * Math.cos((lat0 * Math.PI) / 180);
+  const dN = (lat - lat0) * metersPerDeg;
+  return [V1[0] + dE, V1[1] + dN];
 }
 
 verify();

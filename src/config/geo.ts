@@ -1,9 +1,15 @@
 // Real-world reference geometry for the Arrival + Site scenes.
 // Coordinates are WGS84 [lng, lat], matching Mapbox GL's convention.
 
+import { BUILDING_ANCHOR, BUILDING_FOOTPRINT_WIDTH_M } from "./buildingTransform";
 import {
-  BUILDING_FOOTPRINT_CENTER_LOCAL,
+  ACCESS_FRONT_ARROW_LOCAL,
+  ACCESS_LABEL_LOCAL,
   BUILDING_FOOTPRINT_RING_LOCAL,
+  CONTROL_POINTS_LOCAL,
+  CORNER_LABEL_LOCAL,
+  GOOGLE_VALIDATION_POINT,
+  LONG_ROAD_LABEL_LOCAL,
   PLOT_RING_LOCAL,
   SETBACK_ENVELOPE_LOCAL,
   localRingToLngLat,
@@ -26,29 +32,33 @@ export const SUNMARKE_SCHOOL: LngLat = [55.1933, 25.047];
 export const JVT_CENTER: LngLat = [55.199, 25.049];
 export const E44_REFERENCE: LngLat = [55.2075, 25.0505];
 
-// Confirmed geographic anchor for the official Native Haus plot (Parcel
-// ID 6849739 / JVT04LMRA002), from the Site Plan / Affection Plan. This
-// is the local-geometry origin — see plotGeometry.ts.
-export const NATIVE_HAUS_SITE: LngLat = [55.195435, 25.045633];
+// Google-confirmed validation point — used to sanity-check the
+// georeferenced parcel below (see plotGeometry.ts), never as its origin.
+export const NATIVE_HAUS_SITE: LngLat = GOOGLE_VALIDATION_POINT;
 
-// The true official plot boundary (quadrilateral + R=7m fillet),
-// projected from plotGeometry's local-meter reconstruction.
-export const SITE_PLOT_RING: LngLat[] = localRingToLngLat(NATIVE_HAUS_SITE, PLOT_RING_LOCAL);
+// The official plot boundary, digitized from the Site Plan's own
+// EPSG:3997 grid (quadrilateral + true R=7m fillet) — see plotGeometry.ts
+// for the georeferencing method and validation.
+export const SITE_PLOT_RING: LngLat[] = localRingToLngLat([...PLOT_RING_LOCAL, PLOT_RING_LOCAL[0]]);
 
 // Debug-only (?debug=1): the road-setback envelope the building footprint
 // was fitted inside.
-export const SETBACK_ENVELOPE_RING: LngLat[] = localRingToLngLat(NATIVE_HAUS_SITE, [
-  ...SETBACK_ENVELOPE_LOCAL,
-  SETBACK_ENVELOPE_LOCAL[0],
-]);
+export const SETBACK_ENVELOPE_RING: LngLat[] = localRingToLngLat([...SETBACK_ENVELOPE_LOCAL, SETBACK_ENVELOPE_LOCAL[0]]);
 
 // Debug-only (?debug=1): the fitted building footprint outline.
-export const BUILDING_FOOTPRINT_RING: LngLat[] = localRingToLngLat(NATIVE_HAUS_SITE, BUILDING_FOOTPRINT_RING_LOCAL);
+export const BUILDING_FOOTPRINT_RING: LngLat[] = localRingToLngLat(BUILDING_FOOTPRINT_RING_LOCAL);
 
-// Where the Three.js building is actually anchored (its footprint
-// center) — distinct from NATIVE_HAUS_SITE, which is the plot's
-// confirmed geographic corner (local origin), not the building's center.
-export const BUILDING_ANCHOR: LngLat = localToLngLat(NATIVE_HAUS_SITE, BUILDING_FOOTPRINT_CENTER_LOCAL);
+export { BUILDING_ANCHOR, BUILDING_FOOTPRINT_WIDTH_M };
+
+// Debug-only (?debug=1) verification aids — see plotGeometry.ts.
+export const CONTROL_POINTS: { label: string; point: LngLat }[] = CONTROL_POINTS_LOCAL.map(({ label, point }) => ({
+  label,
+  point: localToLngLat(point),
+}));
+export const LONG_ROAD_LABEL_POINT: LngLat = localToLngLat(LONG_ROAD_LABEL_LOCAL);
+export const ACCESS_LABEL_POINT: LngLat = localToLngLat(ACCESS_LABEL_LOCAL);
+export const CORNER_LABEL_POINT: LngLat = localToLngLat(CORNER_LABEL_LOCAL);
+export const ACCESS_FRONT_ARROW: LngLat[] = localRingToLngLat(ACCESS_FRONT_ARROW_LOCAL);
 
 // Large box (well outside any framed viewport from siteApproach onward)
 // with the plot cut out as a hole, used to dim the surroundings while

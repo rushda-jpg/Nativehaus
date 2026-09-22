@@ -2,15 +2,20 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
+  ACCESS_FRONT_ARROW,
+  ACCESS_LABEL_POINT,
   BUILDING_ANCHOR,
   BUILDING_FOOTPRINT_RING,
   CAMERA_KEYFRAMES,
+  CONTROL_POINTS,
+  CORNER_LABEL_POINT,
+  LONG_ROAD_LABEL_POINT,
   NATIVE_HAUS_SITE,
   SETBACK_ENVELOPE_RING,
   SITE_DIM_MASK_RINGS,
   SITE_PLOT_RING,
 } from "../config/geo";
-import { PLOT_ROTATION_DEG } from "../config/plotGeometry";
+import { BUILDING_BEARING } from "../config/buildingTransform";
 import { SCENE_WINDOWS, windowProgress } from "../config/scenes";
 import { NATIVE_RED } from "../config/brand";
 import { interpolateCamera } from "../lib/math";
@@ -35,6 +40,10 @@ const DEBUG_ENVELOPE_SOURCE_ID = "native-haus-debug-envelope";
 const DEBUG_ENVELOPE_LAYER_ID = "native-haus-debug-envelope-line";
 const DEBUG_FOOTPRINT_SOURCE_ID = "native-haus-debug-footprint";
 const DEBUG_FOOTPRINT_LAYER_ID = "native-haus-debug-footprint-line";
+const DEBUG_ARROW_SOURCE_ID = "native-haus-debug-arrow";
+const DEBUG_ARROW_LAYER_ID = "native-haus-debug-arrow-line";
+const DEBUG_CONTROL_POINTS_SOURCE_ID = "native-haus-debug-controls";
+const DEBUG_CONTROL_POINTS_LAYER_ID = "native-haus-debug-controls-point";
 
 const PULSE_TRANSPARENT = "rgba(193,39,45,0)";
 
@@ -73,11 +82,34 @@ function pulseGradientExpression(center: number): unknown {
   return ["interpolate", ["linear"], ["line-progress"], ...stops.flat()];
 }
 
+/** Small pill-shaped text label used for the ?debug=1 verification
+ * markers (control grid points, road/corner call-outs) — plain DOM, so
+ * it doesn't depend on the style having a glyph service configured. */
+function makeDebugLabel(text: string, accentColor: string): HTMLDivElement {
+  const el = document.createElement("div");
+  el.textContent = text;
+  el.style.cssText = `
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    color: #f5f5f5;
+    background: rgba(4, 6, 10, 0.78);
+    border: 1px solid ${accentColor};
+    border-radius: 3px;
+    padding: 2px 5px;
+    white-space: nowrap;
+    transform: translate(8px, -8px);
+    pointer-events: none;
+  `;
+  return el;
+}
+
 export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const buildingLayerRef = useRef<BuildingLayer | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const controlMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const readyRef = useRef(false);
   const [tokenMissing] = useState(() => !MAPBOX_TOKEN);
   const calibrate = useMemo(() => isCalibrateMode(), []);
@@ -234,8 +266,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
         type: "line",
         source: SITE_SOURCE_ID,
         paint: {
-          "line-color": "#f4e3bd",
-          "line-width": debug ? 2 : 1.5,
+          // Debug mode: RED, per the verification color key. Normal
+          // scroll experience keeps the restrained warm cream.
+          "line-color": debug ? "#ff3b30" : "#f4e3bd",
+          "line-width": debug ? 2.5 : 1.5,
           "line-opacity": debug ? 1 : 0,
         },
         layout: { "line-join": "round", "line-cap": "round" },
@@ -296,7 +330,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
           id: DEBUG_ENVELOPE_LAYER_ID,
           type: "line",
           source: DEBUG_ENVELOPE_SOURCE_ID,
-          paint: { "line-color": "#38bdf8", "line-width": 1.5, "line-dasharray": [2, 2] },
+          paint: { "line-color": "#ff8c00", "line-width": 1.5, "line-dasharray": [2, 2] },
         });
 
         map.addSource(DEBUG_FOOTPRINT_SOURCE_ID, {
@@ -311,12 +345,70 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
           id: DEBUG_FOOTPRINT_LAYER_ID,
           type: "line",
           source: DEBUG_FOOTPRINT_SOURCE_ID,
-          paint: { "line-color": "#a3e635", "line-width": 2 },
+          paint: { "line-color": "#22d3ee", "line-width": 2 },
         });
+
+        map.addSource(DEBUG_ARROW_SOURCE_ID, {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: {},
+            geometry: { type: "LineString", coordinates: ACCESS_FRONT_ARROW },
+          },
+        });
+        map.addLayer({
+          id: DEBUG_ARROW_LAYER_ID,
+          type: "line",
+          source: DEBUG_ARROW_SOURCE_ID,
+          paint: { "line-color": "#ffffff", "line-width": 2.5 },
+          layout: { "line-cap": "round" },
+        });
+
+        map.addSource(DEBUG_CONTROL_POINTS_SOURCE_ID, {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: CONTROL_POINTS.map(({ point }) => ({
+              type: "Feature",
+              properties: {},
+              geometry: { type: "Point", coordinates: point },
+            })),
+          },
+        });
+        map.addLayer({
+          id: DEBUG_CONTROL_POINTS_LAYER_ID,
+          type: "circle",
+          source: DEBUG_CONTROL_POINTS_SOURCE_ID,
+          paint: {
+            "circle-radius": 4,
+            "circle-color": "#ffffff",
+            "circle-stroke-width": 1.5,
+            "circle-stroke-color": "#111827",
+          },
+        });
+
+        for (const { label, point } of CONTROL_POINTS) {
+          controlMarkersRef.current.push(
+            new mapboxgl.Marker({ element: makeDebugLabel(label, "#ffffff") })
+              .setLngLat(point as [number, number])
+              .addTo(map),
+          );
+        }
+        controlMarkersRef.current.push(
+          new mapboxgl.Marker({ element: makeDebugLabel("58.90 m — LONG ROAD FRONTAGE", "#ff8c00") })
+            .setLngLat(LONG_ROAD_LABEL_POINT as [number, number])
+            .addTo(map),
+          new mapboxgl.Marker({ element: makeDebugLabel("35.71 m — ACCESS / PRINCIPAL FRONTAGE", "#ff8c00") })
+            .setLngLat(ACCESS_LABEL_POINT as [number, number])
+            .addTo(map),
+          new mapboxgl.Marker({ element: makeDebugLabel("R7 CORNER — ARCHITECTURAL CORNER", "#22d3ee") })
+            .setLngLat(CORNER_LABEL_POINT as [number, number])
+            .addTo(map),
+        );
       }
 
       const buildingModel = createProceduralBuilding();
-      const buildingLayer = new BuildingLayer(BUILDING_LAYER_ID, BUILDING_ANCHOR, buildingModel, PLOT_ROTATION_DEG);
+      const buildingLayer = new BuildingLayer(BUILDING_LAYER_ID, BUILDING_ANCHOR, buildingModel, BUILDING_BEARING);
       buildingLayerRef.current = buildingLayer;
       map.addLayer(buildingLayer as unknown as mapboxgl.CustomLayerInterface);
 
@@ -343,6 +435,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
       buildingLayerRef.current = null;
       markerRef.current?.remove();
       markerRef.current = null;
+      controlMarkersRef.current.forEach((m) => m.remove());
+      controlMarkersRef.current = [];
       map.remove();
       mapRef.current = null;
     };

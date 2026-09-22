@@ -1,16 +1,14 @@
 import { forwardRef, useImperativeHandle, useRef } from "react";
 import { sceneNameForProgress } from "../config/scenes";
 import { isDebugMode } from "../lib/queryFlags";
-import {
-  BUILDING_FOOTPRINT_AREA_SQM,
-  MAX_BUILDING_FOOTPRINT_SQM,
-  OFFICIAL_PLOT_AREA_SQM,
-  PLOT_ROTATION_DEG,
-} from "../config/plotGeometry";
+import { BUILDING_BEARING, BUILDING_FOOTPRINT_DEPTH_M, BUILDING_FOOTPRINT_WIDTH_M } from "../config/buildingTransform";
+import { MAX_BUILDING_FOOTPRINT_SQM, OFFICIAL_PLOT_AREA_SQM, PLOT_AREA_SQM } from "../config/plotGeometry";
 
 export interface DebugHUDHandle {
   update(progress: number): void;
 }
+
+const FOOTPRINT_AREA_SQM = BUILDING_FOOTPRINT_WIDTH_M * BUILDING_FOOTPRINT_DEPTH_M;
 
 export const DebugHUD = forwardRef<DebugHUDHandle>(function DebugHUD(_, ref) {
   const progressRef = useRef<HTMLSpanElement>(null);
@@ -41,18 +39,20 @@ export const DebugHUD = forwardRef<DebugHUDHandle>(function DebugHUD(_, ref) {
         </span>
       </div>
       <div className="debug-hud__row debug-hud__row--divider">
-        <span className="debug-hud__label">PLOT AREA</span>
-        <span className="debug-hud__value">{OFFICIAL_PLOT_AREA_SQM.toFixed(2)} sqm</span>
+        <span className="debug-hud__label">PARCEL</span>
+        <span className="debug-hud__value">
+          {PLOT_AREA_SQM.toFixed(1)} sqm (official {OFFICIAL_PLOT_AREA_SQM.toFixed(2)})
+        </span>
       </div>
       <div className="debug-hud__row">
         <span className="debug-hud__label">FOOTPRINT</span>
         <span className="debug-hud__value">
-          {BUILDING_FOOTPRINT_AREA_SQM.toFixed(1)} / {MAX_BUILDING_FOOTPRINT_SQM} sqm
+          {FOOTPRINT_AREA_SQM.toFixed(1)} / {MAX_BUILDING_FOOTPRINT_SQM} sqm
         </span>
       </div>
       <div className="debug-hud__row">
-        <span className="debug-hud__label">ROTATION</span>
-        <span className="debug-hud__value">{PLOT_ROTATION_DEG}°</span>
+        <span className="debug-hud__label">BEARING</span>
+        <span className="debug-hud__value">{BUILDING_BEARING.toFixed(1)}°</span>
       </div>
     </div>
   );

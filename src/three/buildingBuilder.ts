@@ -1,10 +1,6 @@
 import * as THREE from "three";
-import {
-  BUILDING_FOOTPRINT_DEPTH_M,
-  BUILDING_FOOTPRINT_WIDTH_M,
-  isInsidePlotRelativeToFootprint,
-  type Local2,
-} from "../config/plotGeometry";
+import { BUILDING_FOOTPRINT_DEPTH_M, BUILDING_FOOTPRINT_WIDTH_M } from "../config/buildingTransform";
+import { isInsidePlotRelativeToFootprint, type Local2 } from "../config/plotGeometry";
 import { SCENE_WINDOWS, windowProgress } from "../config/scenes";
 
 /**

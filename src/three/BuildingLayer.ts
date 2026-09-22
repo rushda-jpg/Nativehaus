@@ -34,9 +34,10 @@ export class BuildingLayer implements mapboxgl.CustomLayerInterface {
 
   /**
    * @param rotationDeg Rotates the building's footprint (around its own
-   * vertical axis) to match the plot's real-world orientation — same
-   * convention/value as `PLOT_ROTATION_DEG` in plotGeometry.ts, degrees,
-   * CCW. 0 leaves the model's authored +X (width) axis pointing East.
+   * vertical axis) to match the plot's real-world orientation — pass
+   * `BUILDING_BEARING` from `config/buildingTransform.ts` (degrees, CCW
+   * from East, standard math convention). 0 leaves the model's authored
+   * +X (width) axis pointing East.
    */
   constructor(id: string, origin: LngLat, model: BuildingModel, rotationDeg = 0) {
     this.id = id;
