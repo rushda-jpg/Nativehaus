@@ -9,9 +9,13 @@ export interface StageHandle {
   update(progress: number): void;
 }
 
+interface StageProps {
+  onExplore?: () => void;
+}
+
 /** Fixed 100vw x 100vh visual stage. Never pinned/scrolled itself — the
  * scroll spacer around it is what creates scroll distance; this stays put. */
-export const Stage = forwardRef<StageHandle>(function Stage(_, ref) {
+export const Stage = forwardRef<StageHandle, StageProps>(function Stage({ onExplore }, ref) {
   const mapRef = useRef<MapCanvasHandle>(null);
   const videoRef = useRef<VideoRevealHandle>(null);
   const typographyRef = useRef<SceneTypographyHandle>(null);
@@ -33,7 +37,7 @@ export const Stage = forwardRef<StageHandle>(function Stage(_, ref) {
       <MapCanvas ref={mapRef} />
       <VideoReveal ref={videoRef} />
       <SceneTypography ref={typographyRef} />
-      <HeroReveal ref={heroRevealRef} />
+      <HeroReveal ref={heroRevealRef} onExplore={onExplore} />
       <DebugHUD ref={hudRef} />
     </div>
   );

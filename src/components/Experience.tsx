@@ -4,7 +4,11 @@ import { useLenis } from "../lib/useLenis";
 import { useScrollProgress } from "../lib/useScrollProgress";
 import { Stage, type StageHandle } from "./Stage";
 
-export function Experience() {
+interface ExperienceProps {
+  onExplore?: () => void;
+}
+
+export function Experience({ onExplore }: ExperienceProps) {
   useLenis();
 
   const spacerRef = useRef<HTMLDivElement>(null);
@@ -19,7 +23,7 @@ export function Experience() {
   return (
     <>
       <div ref={spacerRef} className="scroll-spacer" style={{ height: `${TOTAL_SCROLL_VH}vh` }} />
-      <Stage ref={stageRef} />
+      <Stage ref={stageRef} onExplore={onExplore} />
     </>
   );
 }

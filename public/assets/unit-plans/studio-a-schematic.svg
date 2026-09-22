@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 760" role="img" aria-label="Studio Type A schematic unit plan">
+  <defs>
+    <style>
+      .nh-wall { fill: none; stroke: #ece7dc; stroke-width: 4; }
+      .nh-room { fill: #17181c; }
+      .nh-bath { fill: #1d1e22; stroke: #55503f; stroke-width: 2; }
+      .nh-balcony { fill: #1a2320; stroke: #3a4a3e; stroke-width: 2; stroke-dasharray: 6 5; }
+      .nh-room-label { fill: #b9b3a4; font-family: "Space Grotesk", ui-sans-serif, sans-serif; font-size: 22px; letter-spacing: 0.08em; }
+      .nh-dim-label { fill: #8f8a7d; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 16px; letter-spacing: 0.05em; }
+      .nh-caption { fill: #6b6659; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 15px; letter-spacing: 0.05em; }
+      .nh-north { fill: none; stroke: #8f8a7d; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect width="800" height="760" fill="#0c0d10" />
+
+  <!-- Main living/sleep volume -->
+  <rect class="nh-room" x="80" y="60" width="560" height="480" />
+  <rect class="nh-wall" x="80" y="60" width="560" height="480" />
+  <text class="nh-room-label" x="200" y="300">LIVING / SLEEP</text>
+
+  <!-- Bathroom -->
+  <rect class="nh-bath" x="520" y="60" width="120" height="160" />
+  <text class="nh-room-label" x="535" y="145" font-size="16">BATH</text>
+
+  <!-- Entry -->
+  <path class="nh-wall" d="M80,420 A40,40 0 0 1 120,460" fill="none" />
+  <text class="nh-dim-label" x="60" y="450" transform="rotate(-90 60 450)">ENTRY</text>
+
+  <!-- Balcony -->
+  <rect class="nh-balcony" x="80" y="540" width="560" height="70" />
+  <text class="nh-room-label" x="300" y="583" font-size="18">BALCONY</text>
+
+  <!-- North arrow -->
+  <g class="nh-north" transform="translate(700,90)">
+    <line x1="0" y1="30" x2="0" y2="-20" />
+    <path d="M0,-20 L-8,-6 L8,-6 Z" fill="#8f8a7d" stroke="none" />
+    <text class="nh-dim-label" x="-6" y="50">N</text>
+  </g>
+
+  <text class="nh-dim-label" x="80" y="650">403 SQ FT · 37.4 SQM (APPROX.)</text>
+  <text class="nh-caption" x="80" y="710">SCHEMATIC — PLACEHOLDER PLAN, PENDING FINAL DRAWINGS</text>
+</svg>

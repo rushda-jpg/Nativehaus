@@ -187,6 +187,27 @@ body {
   color: #8f8a7d;
 }
 
+.hero-reveal__cta {
+  margin-top: 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(236, 231, 220, 0.35);
+  padding: 0 0 0.4rem;
+  font-family: inherit;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.32em;
+  color: #ece7dc;
+  cursor: pointer;
+  pointer-events: none;
+  transition: border-color 0.25s ease, color 0.25s ease;
+}
+
+.hero-reveal__cta:hover {
+  color: var(--native-red);
+  border-color: var(--native-red);
+}
+
 .debug-hud {
   position: fixed;
   top: 1.25rem;
@@ -300,4 +321,589 @@ body {
   margin-top: 0.6rem;
   color: #6b7280;
   line-height: 1.4;
+}
+
+/* ==========================================================================
+   Residence Explorer — same premium cinematic language, different mode:
+   click/tap-driven, independently scrolling. Dark charcoal / warm ivory,
+   Native red as a small accent only, no cards-with-shadows, no blue UI.
+   ========================================================================== */
+
+.explorer {
+  min-height: 100vh;
+  background: #0c0d10;
+  color: #ece7dc;
+}
+
+.explorer__header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 1.4rem clamp(1.2rem, 4vw, 3rem);
+  background: rgba(12, 13, 16, 0.86);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(236, 231, 220, 0.08);
+}
+
+.explorer__back-to-cinematic {
+  background: none;
+  border: none;
+  color: #8f8a7d;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  padding: 0.4rem 0;
+  transition: color 0.2s ease;
+}
+
+.explorer__back-to-cinematic:hover {
+  color: #ece7dc;
+}
+
+.explorer__title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.explorer__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.7rem;
+  letter-spacing: 0.36em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.explorer__accent {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--native-red);
+  flex: none;
+}
+
+.explorer__heading {
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  letter-spacing: 0.04em;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.explorer__tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.explorer__tab {
+  background: none;
+  border: 1px solid rgba(236, 231, 220, 0.18);
+  color: #b9b3a4;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.6rem 1.1rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.explorer__tab--active {
+  color: #ece7dc;
+  border-color: #ece7dc;
+}
+
+.explorer__tab:hover {
+  color: #ece7dc;
+}
+
+.explorer__main {
+  padding: clamp(1.5rem, 5vw, 4rem) clamp(1.2rem, 4vw, 3rem) 6rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.explorer__screen {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.explorer__breadcrumb {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: #8f8a7d;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  padding: 0;
+}
+
+.explorer__breadcrumb:hover {
+  color: #ece7dc;
+}
+
+.explorer__screen-heading {
+  font-size: clamp(1.8rem, 3.6vw, 3rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.explorer__pending {
+  color: #8f8a7d;
+  font-size: 0.9rem;
+}
+
+.explorer__type-meta {
+  color: #b9b3a4;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.explorer__type-plan {
+  height: min(70vh, 720px);
+}
+
+.explorer__view-sample {
+  align-self: flex-start;
+  background: none;
+  border: 1px solid rgba(236, 231, 220, 0.2);
+  color: #ece7dc;
+  padding: 0.75rem 1.3rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.explorer__view-sample:hover {
+  border-color: var(--native-red);
+  color: var(--native-red);
+}
+
+/* ---- Floor selector: flat elevation bands, not a 3D cutaway ---- */
+
+.floor-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  padding: 2rem 0;
+}
+
+.floor-selector__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.72rem;
+  letter-spacing: 0.4em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.floor-selector__accent {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--native-red);
+}
+
+.floor-selector__levels {
+  display: flex;
+  flex-direction: column-reverse;
+  width: min(560px, 92vw);
+  border-top: 1px solid rgba(236, 231, 220, 0.1);
+}
+
+.floor-selector__level {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(236, 231, 220, 0.1);
+  color: #8f8a7d;
+  padding: 1.1rem 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, padding 0.2s ease;
+}
+
+.floor-selector__level:not(:disabled):hover,
+.floor-selector__level--hovered:not(:disabled) {
+  color: #ece7dc;
+  background: rgba(236, 231, 220, 0.05);
+  padding-left: 1.2rem;
+}
+
+.floor-selector__level:disabled {
+  color: #4a473e;
+  cursor: default;
+}
+
+.floor-selector__level-label {
+  font-size: clamp(1.1rem, 2.4vw, 1.5rem);
+  letter-spacing: 0.1em;
+}
+
+.floor-selector__level-note {
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  color: #5c584d;
+}
+
+/* ---- Floor plate: background plan + transparent SVG interaction layer ---- */
+
+.floor-plate {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.6;
+  background: #0c0d10;
+  overflow: hidden;
+  border: 1px solid rgba(236, 231, 220, 0.08);
+}
+
+.floor-plate__background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.floor-plate__overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.floor-plate__unit {
+  fill: rgba(193, 39, 45, 0.05);
+  stroke: rgba(236, 231, 220, 0.35);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: fill 0.15s ease, opacity 0.15s ease, stroke 0.15s ease;
+}
+
+.floor-plate__unit--hovered {
+  fill: rgba(193, 39, 45, 0.28);
+  stroke: #ece7dc;
+}
+
+.floor-plate__unit--dimmed {
+  opacity: 0.35;
+}
+
+.floor-plate__unit--debug {
+  stroke: #22d3ee;
+  stroke-dasharray: 4 3;
+}
+
+.floor-plate__debug-label {
+  fill: #22d3ee;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.floor-plate__debug-badge {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  background: rgba(4, 6, 10, 0.78);
+  border: 1px solid #22d3ee;
+  color: #22d3ee;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  padding: 0.4rem 0.6rem;
+  pointer-events: none;
+}
+
+.floor-plate__tooltip {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  background: rgba(4, 6, 10, 0.9);
+  border: 1px solid rgba(236, 231, 220, 0.2);
+  padding: 0.6rem 0.85rem;
+  min-width: 150px;
+}
+
+.floor-plate__tooltip-number {
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: #ece7dc;
+}
+
+.floor-plate__tooltip-type {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: #b9b3a4;
+  margin-top: 0.15rem;
+}
+
+.floor-plate__tooltip-area {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: #8f8a7d;
+}
+
+.floor-plate__pending-note {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  color: #5c584d;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+}
+
+/* ---- Unit plan viewer: zoom/pan/fullscreen, never distorted ---- */
+
+.unit-plan-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #0c0d10;
+}
+
+.unit-plan-viewer__stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+.unit-plan-viewer__stage:active {
+  cursor: grabbing;
+}
+
+.unit-plan-viewer__image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  display: block;
+  transform-origin: center center;
+  will-change: transform;
+  user-select: none;
+}
+
+.unit-plan-viewer__controls {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 0;
+}
+
+.unit-plan-viewer__button {
+  background: none;
+  border: 1px solid rgba(236, 231, 220, 0.18);
+  color: #b9b3a4;
+  min-width: 2.4rem;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.unit-plan-viewer__button:hover:not(:disabled) {
+  color: #ece7dc;
+  border-color: #ece7dc;
+}
+
+.unit-plan-viewer__button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ---- Residence browser: large editorial cards, not portal tiles ---- */
+
+.residence-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 2.8rem;
+}
+
+.residence-browser__category-title {
+  font-size: clamp(1.1rem, 2.2vw, 1.4rem);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0 0 1.1rem;
+  color: #ece7dc;
+  border-bottom: 1px solid rgba(236, 231, 220, 0.1);
+  padding-bottom: 0.7rem;
+}
+
+.residence-browser__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1px;
+  background: rgba(236, 231, 220, 0.08);
+}
+
+.residence-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  background: #0c0d10;
+  border: none;
+  color: #ece7dc;
+  text-align: left;
+  padding: 1.6rem 1.4rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.residence-card:hover {
+  background: #17181c;
+}
+
+.residence-card__label {
+  font-size: 1.15rem;
+  letter-spacing: 0.03em;
+}
+
+.residence-card__area {
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  color: #b9b3a4;
+}
+
+.residence-card__count {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  color: #6b6659;
+}
+
+/* ---- Unit detail panel: reusable across both browse modes ---- */
+
+.unit-detail-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.unit-detail-panel__scrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(4, 6, 10, 0.72);
+  border: none;
+  cursor: pointer;
+}
+
+.unit-detail-panel__sheet {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100vw);
+  height: 100%;
+  background: #0c0d10;
+  border-left: 1px solid rgba(236, 231, 220, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.unit-detail-panel__close {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+  background: none;
+  border: none;
+  color: #8f8a7d;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.unit-detail-panel__close:hover {
+  color: #ece7dc;
+}
+
+.unit-detail-panel__eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+  color: #8f8a7d;
+  text-transform: uppercase;
+}
+
+.unit-detail-panel__unit-number {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 400;
+  margin: 0.5rem 0 1.3rem;
+  letter-spacing: 0.02em;
+}
+
+.unit-detail-panel__facts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.7rem;
+  margin: 0 0 1.6rem;
+}
+
+.unit-detail-panel__fact {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(236, 231, 220, 0.08);
+  padding-bottom: 0.6rem;
+}
+
+.unit-detail-panel__fact dt {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: #6b6659;
+}
+
+.unit-detail-panel__fact dd {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  color: #ece7dc;
+  text-align: right;
+}
+
+.unit-detail-panel__plan {
+  flex: 1;
+  min-height: 380px;
+  border: 1px solid rgba(236, 231, 220, 0.08);
+}
+
+@media (max-width: 720px) {
+  .unit-detail-panel {
+    justify-content: stretch;
+  }
+
+  .unit-detail-panel__sheet {
+    width: 100%;
+    border-left: none;
+  }
 }
