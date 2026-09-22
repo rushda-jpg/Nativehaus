@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { BUILDING_FOOTPRINT_DEPTH_M, BUILDING_FOOTPRINT_WIDTH_M } from "../config/buildingTransform";
 import { isInsidePlotRelativeToFootprint, type Local2 } from "../config/plotGeometry";
-import { HERO_ENVIRONMENT_WINDOW, SCENE_WINDOWS, windowProgress } from "../config/scenes";
+import { HERO_ENVIRONMENT_WINDOW, LEGACY_BUILDING_WINDOWS, windowProgress } from "../config/scenes";
 import { buildHeroEnvironment } from "./heroEnvironment";
 
 /**
@@ -564,14 +564,14 @@ export function createProceduralBuilding(options: CreateBuildingOptions = {}): B
   );
 
   function setProgress(progress: number) {
-    contactShadow.setLocal(windowProgress(progress, SCENE_WINDOWS.slab.window));
-    ground.setLocal(windowProgress(progress, SCENE_WINDOWS.groundFloor.window));
-    massing.setLocal(windowProgress(progress, SCENE_WINDOWS.floorsRising.window));
-    balconies.setLocal(windowProgress(progress, SCENE_WINDOWS.balconyBands.window));
-    fins.setLocal(windowProgress(progress, SCENE_WINDOWS.facadeFins.window));
-    glazing.setLocal(windowProgress(progress, SCENE_WINDOWS.glazing.window));
-    lighting.setLocal(windowProgress(progress, SCENE_WINDOWS.lighting.window));
-    landscaping.setLocal(windowProgress(progress, SCENE_WINDOWS.landscaping.window));
+    contactShadow.setLocal(windowProgress(progress, LEGACY_BUILDING_WINDOWS.slab.window));
+    ground.setLocal(windowProgress(progress, LEGACY_BUILDING_WINDOWS.groundFloor.window));
+    massing.setLocal(windowProgress(progress, LEGACY_BUILDING_WINDOWS.floorsRising.window));
+    balconies.setLocal(windowProgress(progress, LEGACY_BUILDING_WINDOWS.balconyBands.window));
+    fins.setLocal(windowProgress(progress, LEGACY_BUILDING_WINDOWS.facadeFins.window));
+    glazing.setLocal(windowProgress(progress, LEGACY_BUILDING_WINDOWS.glazing.window));
+    lighting.setLocal(windowProgress(progress, LEGACY_BUILDING_WINDOWS.lighting.window));
+    landscaping.setLocal(windowProgress(progress, LEGACY_BUILDING_WINDOWS.landscaping.window));
     if (!options.debug) {
       heroEnvironment.setLocal(windowProgress(progress, HERO_ENVIRONMENT_WINDOW));
     }

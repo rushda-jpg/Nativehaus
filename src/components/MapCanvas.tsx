@@ -9,6 +9,7 @@ import {
   CAMERA_KEYFRAMES,
   CONTROL_POINTS,
   CORNER_LABEL_POINT,
+  LEGACY_CAMERA_KEYFRAMES,
   LONG_ROAD_LABEL_POINT,
   NATIVE_HAUS_SITE,
   SETBACK_ENVELOPE_RING,
@@ -19,7 +20,7 @@ import { BUILDING_BEARING } from "../config/buildingTransform";
 import { HERO_ENVIRONMENT_WINDOW, SCENE_WINDOWS, windowProgress } from "../config/scenes";
 import { NATIVE_RED } from "../config/brand";
 import { interpolateCamera } from "../lib/math";
-import { isCalibrateMode, isDebugMode } from "../lib/queryFlags";
+import { isCalibrateMode, isDebugBuildingMode, isDebugMode } from "../lib/queryFlags";
 import { BuildingLayer } from "../three/BuildingLayer";
 import { createProceduralBuilding } from "../three/buildingBuilder";
 
@@ -116,6 +117,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
   const [tokenMissing] = useState(() => !MAPBOX_TOKEN);
   const calibrate = useMemo(() => isCalibrateMode(), []);
   const debug = useMemo(() => isDebugMode(), []);
+  // Retired procedural-building reference path — see queryFlags.ts. Keeps
+  // the old full camera descent + Three.js building + hero environment
+  // available for development without any of it reaching normal visitors.
+  const debugBuilding = useMemo(() => isDebugBuildingMode(), []);
   const [clicked, setClicked] = useState<ClickedCoord | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -124,7 +129,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
       const map = mapRef.current;
       if (!map || !readyRef.current || calibrate) return;
 
-      const camera = interpolateCamera(progress, CAMERA_KEYFRAMES);
+      const camera = interpolateCamera(progress, debugBuilding ? LEGACY_CAMERA_KEYFRAMES : CAMERA_KEYFRAMES);
       map.jumpTo({
         center: camera.center as [number, number],
         zoom: camera.zoom,
@@ -135,10 +140,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
       // In debug mode the plot outline/fill stay at their verification
       // baseline (set once on load) rather than following the scroll
       // reveal, and the surroundings are never dimmed, so the overlays
-      // stay legible however far the page is scrolled. The same applies
-      // to the satellite fade/hero-environment swap below: debug mode
-      // keeps the raw satellite imagery visible at every progress for
-      // geometry verification.
+      // stay legible however far the page is scrolled.
       if (!debug) {
         const dimT = windowProgress(progress, SCENE_WINDOWS.siteApproach.window);
         if (map.getLayer(SITE_DIM_MASK_LAYER_ID)) {
@@ -166,11 +168,15 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
           }
         }
 
-        // As the camera descends toward the front hero view, fade the
-        // flat satellite basemap out — it reads as an unconvincing flat
-        // photo once viewed near-horizon — while heroEnvironment.ts's
-        // curated ground/road/context fades in underneath it (driven by
-        // the same window, via buildingLayer.setProgress below).
+      }
+
+      // ?debugBuilding=1 only: the retired camera-descent-into-hero-
+      // environment transition, paired with the procedural building
+      // below. Fades the flat satellite basemap out (it reads as an
+      // unconvincing flat photo once viewed near-horizon) while
+      // heroEnvironment.ts's curated ground/road/context fades in
+      // underneath it, via buildingLayer.setProgress below.
+      if (!debug && debugBuilding) {
         const envT = windowProgress(progress, HERO_ENVIRONMENT_WINDOW);
         for (const layerId of rasterLayerIdsRef.current) {
           if (map.getLayer(layerId)) {
@@ -189,7 +195,20 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
         }
       }
 
-      buildingLayerRef.current?.setProgress(progress);
+      // Normal experience only: as the arrival camera settles and holds
+      // (SCENE_WINDOWS.plotHold), fade the whole Mapbox layer out while
+      // VideoReveal's construction video crossfades in on top of it (see
+      // VideoReveal.tsx, driven by the same window off the same
+      // `progress`) — Mapbox stays mounted and ready to crossfade back in
+      // if the visitor scrolls back up, it's just made invisible here.
+      if (!debug && !debugBuilding && containerRef.current) {
+        const crossfadeT = windowProgress(progress, SCENE_WINDOWS.plotHold.window);
+        containerRef.current.style.opacity = String(1 - crossfadeT);
+      }
+
+      if (debugBuilding) {
+        buildingLayerRef.current?.setProgress(progress);
+      }
     },
   }));
 
@@ -202,7 +221,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
     // anchor so clicks can be judged precisely against the imagery.
     const initial = calibrate
       ? { center: NATIVE_HAUS_SITE as [number, number], zoom: 17.5, pitch: 0, bearing: 0 }
-      : interpolateCamera(0, CAMERA_KEYFRAMES);
+      : interpolateCamera(0, debugBuilding ? LEGACY_CAMERA_KEYFRAMES : CAMERA_KEYFRAMES);
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
@@ -228,6 +247,11 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
       renderWorldCopies: false,
     });
     mapRef.current = map;
+    // Defensive: the container div persists across a debug/debugBuilding
+    // mode toggle (which remounts the map via this effect's dependency
+    // array), so any opacity the crossfade left behind must be reset —
+    // otherwise a fresh mount could inherit a stale invisible map.
+    containerRef.current.style.opacity = "1";
 
     map.on("style.load", () => {
       // Defensive: satellite-v9 ships no label layers, but hide any
@@ -441,10 +465,15 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
         );
       }
 
-      const buildingModel = createProceduralBuilding({ debug });
-      const buildingLayer = new BuildingLayer(BUILDING_LAYER_ID, BUILDING_ANCHOR, buildingModel, BUILDING_BEARING);
-      buildingLayerRef.current = buildingLayer;
-      map.addLayer(buildingLayer as unknown as mapboxgl.CustomLayerInterface);
+      // ?debugBuilding=1 only — normal visitors get the supplied
+      // construction video (VideoReveal.tsx) instead of this procedural
+      // Three.js building.
+      if (debugBuilding) {
+        const buildingModel = createProceduralBuilding({ debug });
+        const buildingLayer = new BuildingLayer(BUILDING_LAYER_ID, BUILDING_ANCHOR, buildingModel, BUILDING_BEARING);
+        buildingLayerRef.current = buildingLayer;
+        map.addLayer(buildingLayer as unknown as mapboxgl.CustomLayerInterface);
+      }
 
       readyRef.current = true;
 
@@ -474,7 +503,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
       map.remove();
       mapRef.current = null;
     };
-  }, [calibrate, debug]);
+  }, [calibrate, debug, debugBuilding]);
 
   if (tokenMissing) {
     return (

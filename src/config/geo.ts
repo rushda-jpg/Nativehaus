@@ -108,10 +108,34 @@ function lerpDeg(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+// ---- Public experience: arrival + hold, then the video takes over ------
+// Same approved geography/feel as before (globe -> Dubai -> JVT -> plot),
+// rescaled from its old [0, 0.35] span into [0, 0.40] per the new
+// timeline (SCENE_WINDOWS.plotBoundary ends at 0.40). The last keyframe
+// is the hand-off hold: interpolateCamera clamps to it for any progress
+// beyond 0.40, so the camera simply stops moving through plotHold
+// (0.40-0.45) while Mapbox crossfades into the construction video — no
+// separate "hold" keyframe needed. Framing (aerial oblique, pitch ~63°,
+// plot filling most of the view) is chosen to broadly match the supplied
+// video's own first frame, though exact pixel alignment isn't achievable
+// since that frame comes from a different map provider (Google Earth) —
+// the crossfade, not the camera math, is what has to bridge that gap.
 export const CAMERA_KEYFRAMES: CameraKeyframe[] = [
-  // ---- Arrival (0.00-0.35): unchanged geography/feel from the approved
-  // JVT->plot approach, only compressed to half its previous progress span
-  // so the new descent-to-hero act below has room to play out.
+  { progress: 0.0, center: [55.4, 24.6], zoom: 0.4, pitch: 0, bearing: 0 },
+  { progress: 0.069, center: [55.35, 24.9], zoom: 2.4, pitch: 0, bearing: 0 },
+  { progress: 0.171, center: [55.27, 25.15], zoom: 9.2, pitch: 20, bearing: -6 },
+  { progress: 0.274, center: [55.205, 25.055], zoom: 14.4, pitch: 48, bearing: -14 },
+  { progress: 0.314, center: JVT_CENTER, zoom: 15.6, pitch: 60, bearing: -18 },
+  { progress: 0.366, center: approachWaypoint, zoom: 16.6, pitch: 62, bearing: -18 },
+  { progress: 0.4, center: BUILDING_ANCHOR, zoom: 17.6, pitch: 63, bearing: -16 },
+];
+
+// ---- Retired: full descent-to-hero camera (?debugBuilding=1 only) ------
+// Unchanged from the previous round — paired with the procedural
+// building + hero environment (buildingBuilder.ts/heroEnvironment.ts),
+// kept for development/reference now that the supplied construction
+// video is the public building reveal.
+export const LEGACY_CAMERA_KEYFRAMES: CameraKeyframe[] = [
   { progress: 0.0, center: [55.4, 24.6], zoom: 0.4, pitch: 0, bearing: 0 },
   { progress: 0.06, center: [55.35, 24.9], zoom: 2.4, pitch: 0, bearing: 0 },
   { progress: 0.15, center: [55.27, 25.15], zoom: 9.2, pitch: 20, bearing: -6 },
@@ -119,22 +143,8 @@ export const CAMERA_KEYFRAMES: CameraKeyframe[] = [
   { progress: 0.275, center: JVT_CENTER, zoom: 15.6, pitch: 60, bearing: -18 },
   { progress: 0.32, center: approachWaypoint, zoom: 16.6, pitch: 62, bearing: -18 },
   { progress: 0.35, center: BUILDING_ANCHOR, zoom: 17.6, pitch: 63, bearing: -16 },
-
-  // ---- Construction (0.35-0.75): the bird's-eye view holds, with only a
-  // slow, subtle settle/dolly-in around the mass as it rises floor by
-  // floor — same aerial keyframe values approved previously, now spread
-  // across the full structural phase instead of compressed at its end.
   { progress: 0.55, center: BUILDING_ANCHOR, zoom: 17.8, pitch: 63.5, bearing: -13 },
   { progress: 0.75, center: BUILDING_ANCHOR, zoom: 17.95, pitch: 64, bearing: -10 },
-
-  // ---- Continuous descent to the front hero view (0.75-1.00): no cuts.
-  // The camera lowers from the aerial dolly toward street level while
-  // rotating to face the building's front — the look-at point and final
-  // bearing are both derived from the digitized site geometry (the
-  // road-corner bisector, see plotGeometry.ts), not guessed. Facade
-  // detailing (balconies/fins/glazing/lighting) finishes across the same
-  // window (see SCENE_WINDOWS), so the building is fully dressed by the
-  // time it's seen up close.
   {
     progress: 0.8,
     center: lerpPoint(BUILDING_ANCHOR, FRONT_VIEW_TARGET, 0.25),
@@ -156,8 +166,6 @@ export const CAMERA_KEYFRAMES: CameraKeyframe[] = [
     pitch: 79,
     bearing: lerpDeg(-10, FRONT_VIEW_BEARING, 0.8),
   },
-  // Descent complete: settled front three-quarter hero position, held
-  // through the title-typography reveal (heroReveal window, 0.96-1.0).
   { progress: 0.96, center: FRONT_VIEW_TARGET, zoom: 18.85, pitch: 82, bearing: FRONT_VIEW_BEARING },
   { progress: 1.0, center: FRONT_VIEW_TARGET, zoom: 19.0, pitch: 81, bearing: FRONT_VIEW_BEARING },
 ];

@@ -1,5 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef } from "react";
 import { MapCanvas, type MapCanvasHandle } from "./MapCanvas";
+import { VideoReveal, type VideoRevealHandle } from "./VideoReveal";
 import { SceneTypography, type SceneTypographyHandle } from "./SceneTypography";
 import { HeroReveal, type HeroRevealHandle } from "./HeroReveal";
 import { DebugHUD, type DebugHUDHandle } from "./DebugHUD";
@@ -12,6 +13,7 @@ export interface StageHandle {
  * scroll spacer around it is what creates scroll distance; this stays put. */
 export const Stage = forwardRef<StageHandle>(function Stage(_, ref) {
   const mapRef = useRef<MapCanvasHandle>(null);
+  const videoRef = useRef<VideoRevealHandle>(null);
   const typographyRef = useRef<SceneTypographyHandle>(null);
   const heroRevealRef = useRef<HeroRevealHandle>(null);
   const hudRef = useRef<DebugHUDHandle>(null);
@@ -19,6 +21,7 @@ export const Stage = forwardRef<StageHandle>(function Stage(_, ref) {
   useImperativeHandle(ref, () => ({
     update(progress: number) {
       mapRef.current?.update(progress);
+      videoRef.current?.update(progress);
       typographyRef.current?.update(progress);
       heroRevealRef.current?.update(progress);
       hudRef.current?.update(progress);
@@ -28,6 +31,7 @@ export const Stage = forwardRef<StageHandle>(function Stage(_, ref) {
   return (
     <div className="stage">
       <MapCanvas ref={mapRef} />
+      <VideoReveal ref={videoRef} />
       <SceneTypography ref={typographyRef} />
       <HeroReveal ref={heroRevealRef} />
       <DebugHUD ref={hudRef} />

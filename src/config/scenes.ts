@@ -1,6 +1,6 @@
 // Single source of truth for the 0..1 scroll timeline. Every consumer
-// (camera, typography, building construction, debug HUD) reads its
-// window from here instead of hard-coding progress numbers.
+// (camera, typography, the video reveal, debug HUD) reads its window
+// from here instead of hard-coding progress numbers.
 
 export type ProgressWindow = readonly [start: number, end: number];
 
@@ -10,21 +10,36 @@ export interface SceneWindow {
   window: ProgressWindow;
 }
 
-// Timeline, top to bottom:
-//   0.00-0.35  Arrival — JVT approach, plot identification (unchanged
-//              geography, compressed to make room for the new final act)
-//   0.35-0.75  Construction — slab through upper floors rising
-//   0.75-0.90  Detail completion (balconies/fins/glazing/lighting) while
-//              the camera begins its continuous descent to street level
-//   0.90-0.96  Landscaping, camera completes its descent
-//   0.96-1.00  Front hero reveal — camera settled, title typography
+// Timeline, top to bottom (the public experience):
+//   0.00-0.40  Arrival — globe -> Dubai -> JVT -> plot identification,
+//              real Mapbox geography throughout
+//   0.40-0.45  Plot hold — camera settles/stops moving while Mapbox
+//              crossfades into the construction video
+//   0.45-0.95  Construction — scroll-scrubbed video (VideoReveal.tsx);
+//              Mapbox is fully faded out and inert by this point
+//   0.95-1.00  Completed Native Haus hero frame + title typography
 export const SCENE_WINDOWS = {
-  deepSpace: { id: "deepSpace", label: "ARRIVAL — DEEP SPACE", window: [0, 0.06] },
-  descentToDubai: { id: "descentToDubai", label: "ARRIVAL — DESCENT TO DUBAI", window: [0.06, 0.15] },
-  intoJvt: { id: "intoJvt", label: "ARRIVAL — JUMEIRAH VILLAGE TRIANGLE", window: [0.15, 0.24] },
-  jvtOblique: { id: "jvtOblique", label: "ARRIVAL — OBLIQUE AERIAL", window: [0.24, 0.275] },
-  siteApproach: { id: "siteApproach", label: "THE SITE — APPROACH", window: [0.275, 0.32] },
-  plotBoundary: { id: "plotBoundary", label: "THE SITE — BOUNDARY", window: [0.32, 0.35] },
+  deepSpace: { id: "deepSpace", label: "ARRIVAL — DEEP SPACE", window: [0, 0.05] },
+  descentToDubai: { id: "descentToDubai", label: "ARRIVAL — DESCENT TO DUBAI", window: [0.05, 0.13] },
+  intoJvt: { id: "intoJvt", label: "ARRIVAL — JUMEIRAH VILLAGE TRIANGLE", window: [0.13, 0.21] },
+  jvtOblique: { id: "jvtOblique", label: "ARRIVAL — OBLIQUE AERIAL", window: [0.21, 0.24] },
+  siteApproach: { id: "siteApproach", label: "THE SITE — APPROACH", window: [0.24, 0.3] },
+  plotBoundary: { id: "plotBoundary", label: "THE SITE — BOUNDARY", window: [0.3, 0.4] },
+  plotHold: { id: "plotHold", label: "THE SITE — MAPBOX TO VIDEO", window: [0.4, 0.45] },
+  videoConstruction: { id: "videoConstruction", label: "NATIVE HAUS — CONSTRUCTION", window: [0.45, 0.95] },
+  heroReveal: { id: "heroReveal", label: "NATIVE HAUS — FRONT REVEAL", window: [0.95, 1.0] },
+} as const satisfies Record<string, SceneWindow>;
+
+export type SceneId = keyof typeof SCENE_WINDOWS;
+
+export const SCENE_ORDER: SceneId[] = Object.keys(SCENE_WINDOWS) as SceneId[];
+
+// ---- Retired procedural-building reference path (?debugBuilding=1) -----
+// The old Three.js construction sub-stages and hero environment window —
+// kept exactly as they were so buildingBuilder.ts/heroEnvironment.ts keep
+// working unchanged, just no longer part of the public SCENE_WINDOWS/
+// SCENE_ORDER above (which now describes the video-based experience).
+export const LEGACY_BUILDING_WINDOWS = {
   slab: { id: "slab", label: "THE SITE — SLAB", window: [0.35, 0.4] },
   groundFloor: { id: "groundFloor", label: "THE SITE — GROUND FLOOR", window: [0.4, 0.5] },
   floorsRising: { id: "floorsRising", label: "THE SITE — FLOORS RISING", window: [0.5, 0.75] },
@@ -33,33 +48,25 @@ export const SCENE_WINDOWS = {
   glazing: { id: "glazing", label: "THE SITE — GLAZING", window: [0.84, 0.87] },
   lighting: { id: "lighting", label: "THE SITE — LIGHTING", window: [0.87, 0.9] },
   landscaping: { id: "landscaping", label: "THE SITE — LANDSCAPE", window: [0.9, 0.96] },
-  heroReveal: { id: "heroReveal", label: "NATIVE HAUS — FRONT REVEAL", window: [0.96, 1.0] },
 } as const satisfies Record<string, SceneWindow>;
-
-export type SceneId = keyof typeof SCENE_WINDOWS;
-
-export const SCENE_ORDER: SceneId[] = Object.keys(SCENE_WINDOWS) as SceneId[];
 
 // The whole "building" super-phase, used to hand BuildingModel.setProgress
 // a single local 0..1 spanning all eight construction stages.
 export const BUILDING_WINDOW: ProgressWindow = [
-  SCENE_WINDOWS.slab.window[0],
-  SCENE_WINDOWS.landscaping.window[1],
+  LEGACY_BUILDING_WINDOWS.slab.window[0],
+  LEGACY_BUILDING_WINDOWS.landscaping.window[1],
 ];
 
 export const SCENE_2_WINDOW: ProgressWindow = [
   SCENE_WINDOWS.siteApproach.window[0],
-  SCENE_WINDOWS.landscaping.window[1],
+  LEGACY_BUILDING_WINDOWS.landscaping.window[1],
 ];
 
-// As the camera descends toward the front hero view, the flat satellite
-// basemap is progressively replaced by a curated local environment (see
-// heroEnvironment.ts) — the transition runs alongside the same detail
-// stages (balcony bands through landscaping) so the building finishes
-// dressing at the same pace the ground around it changes.
+// heroEnvironment.ts's ground/road/context fade, paired with the old
+// camera descent — only relevant under ?debugBuilding=1.
 export const HERO_ENVIRONMENT_WINDOW: ProgressWindow = [
-  SCENE_WINDOWS.balconyBands.window[0],
-  SCENE_WINDOWS.landscaping.window[1],
+  LEGACY_BUILDING_WINDOWS.balconyBands.window[0],
+  LEGACY_BUILDING_WINDOWS.landscaping.window[1],
 ];
 
 export const TOTAL_SCROLL_VH = 500;
