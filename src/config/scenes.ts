@@ -52,6 +52,16 @@ export const SCENE_2_WINDOW: ProgressWindow = [
   SCENE_WINDOWS.landscaping.window[1],
 ];
 
+// As the camera descends toward the front hero view, the flat satellite
+// basemap is progressively replaced by a curated local environment (see
+// heroEnvironment.ts) — the transition runs alongside the same detail
+// stages (balcony bands through landscaping) so the building finishes
+// dressing at the same pace the ground around it changes.
+export const HERO_ENVIRONMENT_WINDOW: ProgressWindow = [
+  SCENE_WINDOWS.balconyBands.window[0],
+  SCENE_WINDOWS.landscaping.window[1],
+];
+
 export const TOTAL_SCROLL_VH = 500;
 
 export function clamp01(value: number): number {

@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { BUILDING_FOOTPRINT_DEPTH_M, BUILDING_FOOTPRINT_WIDTH_M } from "../config/buildingTransform";
 import { isInsidePlotRelativeToFootprint, type Local2 } from "../config/plotGeometry";
-import { SCENE_WINDOWS, windowProgress } from "../config/scenes";
+import { HERO_ENVIRONMENT_WINDOW, SCENE_WINDOWS, windowProgress } from "../config/scenes";
+import { buildHeroEnvironment } from "./heroEnvironment";
 
 /**
  * Shape all Three.js consumers of "the building" talk to. The Mapbox
@@ -129,7 +130,7 @@ function growFromBase(geometry: THREE.BufferGeometry, material: THREE.Material, 
   return mesh;
 }
 
-interface Stage {
+export interface Stage {
   group: THREE.Group;
   setLocal(t: number): void;
 }
@@ -523,7 +524,16 @@ function buildLandscaping(): Stage {
   return { group, setLocal };
 }
 
-export function createProceduralBuilding(): BuildingModel {
+export interface CreateBuildingOptions {
+  /** ?debug=1: the hero environment (ground plane + road dressing that
+   * replaces the satellite imagery) stays hidden so the real satellite
+   * imagery remains visible for geometry verification at any scroll
+   * position — matching MapCanvas's existing "surroundings are never
+   * dimmed" debug behavior. */
+  debug?: boolean;
+}
+
+export function createProceduralBuilding(options: CreateBuildingOptions = {}): BuildingModel {
   const root = new THREE.Object3D();
 
   const ambient = new THREE.AmbientLight(0xb8a98c, 0.5);
@@ -539,6 +549,7 @@ export function createProceduralBuilding(): BuildingModel {
   const { stage: glazing, floorSegments } = buildGlazing();
   const lighting = buildLighting(floorSegments, columns);
   const landscaping = buildLandscaping();
+  const heroEnvironment = buildHeroEnvironment();
 
   root.add(
     contactShadow.group,
@@ -549,6 +560,7 @@ export function createProceduralBuilding(): BuildingModel {
     glazing.group,
     lighting.group,
     landscaping.group,
+    heroEnvironment.group,
   );
 
   function setProgress(progress: number) {
@@ -560,6 +572,9 @@ export function createProceduralBuilding(): BuildingModel {
     glazing.setLocal(windowProgress(progress, SCENE_WINDOWS.glazing.window));
     lighting.setLocal(windowProgress(progress, SCENE_WINDOWS.lighting.window));
     landscaping.setLocal(windowProgress(progress, SCENE_WINDOWS.landscaping.window));
+    if (!options.debug) {
+      heroEnvironment.setLocal(windowProgress(progress, HERO_ENVIRONMENT_WINDOW));
+    }
   }
 
   function dispose() {

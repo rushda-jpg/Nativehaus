@@ -16,7 +16,7 @@ import {
   SITE_PLOT_RING,
 } from "../config/geo";
 import { BUILDING_BEARING } from "../config/buildingTransform";
-import { SCENE_WINDOWS, windowProgress } from "../config/scenes";
+import { HERO_ENVIRONMENT_WINDOW, SCENE_WINDOWS, windowProgress } from "../config/scenes";
 import { NATIVE_RED } from "../config/brand";
 import { interpolateCamera } from "../lib/math";
 import { isCalibrateMode, isDebugMode } from "../lib/queryFlags";
@@ -110,6 +110,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
   const buildingLayerRef = useRef<BuildingLayer | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const controlMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const rasterLayerIdsRef = useRef<string[]>([]);
+  const vignetteRef = useRef<HTMLDivElement>(null);
   const readyRef = useRef(false);
   const [tokenMissing] = useState(() => !MAPBOX_TOKEN);
   const calibrate = useMemo(() => isCalibrateMode(), []);
@@ -133,7 +135,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
       // In debug mode the plot outline/fill stay at their verification
       // baseline (set once on load) rather than following the scroll
       // reveal, and the surroundings are never dimmed, so the overlays
-      // stay legible however far the page is scrolled.
+      // stay legible however far the page is scrolled. The same applies
+      // to the satellite fade/hero-environment swap below: debug mode
+      // keeps the raw satellite imagery visible at every progress for
+      // geometry verification.
       if (!debug) {
         const dimT = windowProgress(progress, SCENE_WINDOWS.siteApproach.window);
         if (map.getLayer(SITE_DIM_MASK_LAYER_ID)) {
@@ -159,6 +164,28 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
             // line-gradient's typed expression shape isn't worth fighting here.
             map.setPaintProperty(SITE_PULSE_LAYER_ID, "line-gradient", pulseGradientExpression(pulseT) as never);
           }
+        }
+
+        // As the camera descends toward the front hero view, fade the
+        // flat satellite basemap out — it reads as an unconvincing flat
+        // photo once viewed near-horizon — while heroEnvironment.ts's
+        // curated ground/road/context fades in underneath it (driven by
+        // the same window, via buildingLayer.setProgress below).
+        const envT = windowProgress(progress, HERO_ENVIRONMENT_WINDOW);
+        for (const layerId of rasterLayerIdsRef.current) {
+          if (map.getLayer(layerId)) {
+            map.setPaintProperty(layerId, "raster-opacity", 1 - envT);
+          }
+        }
+        map.setFog({
+          color: "#0a1622",
+          "high-color": "#0b1d33",
+          "space-color": "#00020a",
+          "horizon-blend": 0.15 + envT * 0.3,
+          "star-intensity": 0.25,
+        });
+        if (vignetteRef.current) {
+          vignetteRef.current.style.opacity = String(envT * 0.75);
         }
       }
 
@@ -210,6 +237,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
       // touches the environment, never the Three.js building it's
       // rendered underneath.
       const layers = map.getStyle()?.layers ?? [];
+      rasterLayerIdsRef.current = [];
       for (const layer of layers) {
         if (layer.type === "symbol") {
           map.setLayoutProperty(layer.id, "visibility", "none");
@@ -219,6 +247,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
           map.setPaintProperty(layer.id, "raster-contrast", 0.22);
           map.setPaintProperty(layer.id, "raster-brightness-min", 0.02);
           map.setPaintProperty(layer.id, "raster-brightness-max", 0.88);
+          // Tracked so `update()` can fade this out as the front hero
+          // environment (heroEnvironment.ts) fades in underneath it.
+          rasterLayerIdsRef.current.push(layer.id);
         }
       }
 
@@ -410,7 +441,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
         );
       }
 
-      const buildingModel = createProceduralBuilding();
+      const buildingModel = createProceduralBuilding({ debug });
       const buildingLayer = new BuildingLayer(BUILDING_LAYER_ID, BUILDING_ANCHOR, buildingModel, BUILDING_BEARING);
       buildingLayerRef.current = buildingLayer;
       map.addLayer(buildingLayer as unknown as mapboxgl.CustomLayerInterface);
@@ -460,6 +491,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
   return (
     <>
       <div ref={containerRef} className="map-canvas" />
+      <div ref={vignetteRef} className="hero-vignette" aria-hidden="true" />
       {calibrate && (
         <div className="calibration-panel">
           <div className="calibration-panel__title">CALIBRATION MODE</div>

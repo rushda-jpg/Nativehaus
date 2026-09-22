@@ -67,6 +67,15 @@ body {
   opacity: 0.4;
 }
 
+.hero-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at 50% 62%, rgba(0, 0, 0, 0) 30%, rgba(4, 6, 10, 0.55) 78%, rgba(2, 3, 6, 0.86) 100%);
+}
+
 .site-typography {
   position: absolute;
   left: 6vw;

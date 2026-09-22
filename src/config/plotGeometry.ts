@@ -281,12 +281,25 @@ export const PLOT_RING_RELATIVE_TO_FOOTPRINT: Local2[] = PLOT_RING_LOCAL.map(
 const bearingRad = (BUILDING_BEARING_DEG * Math.PI) / 180;
 const cosB = Math.cos(bearingRad);
 const sinB = Math.sin(bearingRad);
-const PLOT_RING_BUILDING_LOCAL: Local2[] = PLOT_RING_RELATIVE_TO_FOOTPRINT.map(
-  ([e, n]): Local2 => [e * cosB + n * sinB, e * sinB - n * cosB],
-);
+/** Applies the same reflection-rotation to any real-world (east,north)
+ * vector/point — used both for the plot ring below and for deriving other
+ * building-local directions (e.g. FRONT_DIRECTION_BUILDING_LOCAL). Valid
+ * for direction vectors too (no translation involved), since it's linear. */
+function rotateRealToBuildingLocal([e, n]: Local2): Local2 {
+  return [e * cosB + n * sinB, e * sinB - n * cosB];
+}
+const PLOT_RING_BUILDING_LOCAL: Local2[] = PLOT_RING_RELATIVE_TO_FOOTPRINT.map(rotateRealToBuildingLocal);
 export function isInsidePlotRelativeToFootprint(point: Local2): boolean {
   return pointInConvexPolygon(point, PLOT_RING_BUILDING_LOCAL);
 }
+
+/** The road-corner "front" direction (see `bisector`/ACCESS_FRONT_ARROW_LOCAL
+ * above), expressed in the building's own unrotated local X/Z frame —
+ * i.e. the same frame buildingBuilder.ts authors geometry in, before
+ * BuildingLayer's rotationY is applied. Lets hero-environment dressing
+ * (road/curb/streetlights near the front) be placed relative to the real
+ * digitized road-corner geometry instead of a guessed direction. */
+export const FRONT_DIRECTION_BUILDING_LOCAL: Local2 = rotateRealToBuildingLocal(bisector);
 
 // ---- Debug-only (?debug=1) verification aids ----------------------------
 // The four EPSG:3997 grid crosses printed on the Site Plan itself, used
