@@ -185,6 +185,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
       zoom: initial.zoom,
       pitch: initial.pitch,
       bearing: initial.bearing,
+      // Default maxPitch is 60°; the front hero reveal descends to ~82°
+      // (near-horizon street level), so it must be raised explicitly.
+      maxPitch: 85,
       attributionControl: true,
       interactive: calibrate,
       scrollZoom: calibrate,

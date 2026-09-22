@@ -10,21 +10,30 @@ export interface SceneWindow {
   window: ProgressWindow;
 }
 
+// Timeline, top to bottom:
+//   0.00-0.35  Arrival — JVT approach, plot identification (unchanged
+//              geography, compressed to make room for the new final act)
+//   0.35-0.75  Construction — slab through upper floors rising
+//   0.75-0.90  Detail completion (balconies/fins/glazing/lighting) while
+//              the camera begins its continuous descent to street level
+//   0.90-0.96  Landscaping, camera completes its descent
+//   0.96-1.00  Front hero reveal — camera settled, title typography
 export const SCENE_WINDOWS = {
-  deepSpace: { id: "deepSpace", label: "ARRIVAL — DEEP SPACE", window: [0, 0.12] },
-  descentToDubai: { id: "descentToDubai", label: "ARRIVAL — DESCENT TO DUBAI", window: [0.12, 0.3] },
-  intoJvt: { id: "intoJvt", label: "ARRIVAL — JUMEIRAH VILLAGE TRIANGLE", window: [0.3, 0.48] },
-  jvtOblique: { id: "jvtOblique", label: "ARRIVAL — OBLIQUE AERIAL", window: [0.48, 0.55] },
-  siteApproach: { id: "siteApproach", label: "THE SITE — APPROACH", window: [0.55, 0.64] },
-  plotBoundary: { id: "plotBoundary", label: "THE SITE — BOUNDARY", window: [0.64, 0.7] },
-  slab: { id: "slab", label: "THE SITE — SLAB", window: [0.7, 0.735] },
-  groundFloor: { id: "groundFloor", label: "THE SITE — GROUND FLOOR", window: [0.735, 0.77] },
-  floorsRising: { id: "floorsRising", label: "THE SITE — FLOORS RISING", window: [0.77, 0.85] },
-  balconyBands: { id: "balconyBands", label: "THE SITE — BALCONY BANDS", window: [0.85, 0.885] },
-  facadeFins: { id: "facadeFins", label: "THE SITE — FAÇADE FINS", window: [0.885, 0.92] },
-  glazing: { id: "glazing", label: "THE SITE — GLAZING", window: [0.92, 0.95] },
-  lighting: { id: "lighting", label: "THE SITE — LIGHTING", window: [0.95, 0.975] },
-  landscaping: { id: "landscaping", label: "THE SITE — LANDSCAPE", window: [0.975, 1.0] },
+  deepSpace: { id: "deepSpace", label: "ARRIVAL — DEEP SPACE", window: [0, 0.06] },
+  descentToDubai: { id: "descentToDubai", label: "ARRIVAL — DESCENT TO DUBAI", window: [0.06, 0.15] },
+  intoJvt: { id: "intoJvt", label: "ARRIVAL — JUMEIRAH VILLAGE TRIANGLE", window: [0.15, 0.24] },
+  jvtOblique: { id: "jvtOblique", label: "ARRIVAL — OBLIQUE AERIAL", window: [0.24, 0.275] },
+  siteApproach: { id: "siteApproach", label: "THE SITE — APPROACH", window: [0.275, 0.32] },
+  plotBoundary: { id: "plotBoundary", label: "THE SITE — BOUNDARY", window: [0.32, 0.35] },
+  slab: { id: "slab", label: "THE SITE — SLAB", window: [0.35, 0.4] },
+  groundFloor: { id: "groundFloor", label: "THE SITE — GROUND FLOOR", window: [0.4, 0.5] },
+  floorsRising: { id: "floorsRising", label: "THE SITE — FLOORS RISING", window: [0.5, 0.75] },
+  balconyBands: { id: "balconyBands", label: "THE SITE — BALCONY BANDS", window: [0.75, 0.8] },
+  facadeFins: { id: "facadeFins", label: "THE SITE — FAÇADE FINS", window: [0.8, 0.84] },
+  glazing: { id: "glazing", label: "THE SITE — GLAZING", window: [0.84, 0.87] },
+  lighting: { id: "lighting", label: "THE SITE — LIGHTING", window: [0.87, 0.9] },
+  landscaping: { id: "landscaping", label: "THE SITE — LANDSCAPE", window: [0.9, 0.96] },
+  heroReveal: { id: "heroReveal", label: "NATIVE HAUS — FRONT REVEAL", window: [0.96, 1.0] },
 } as const satisfies Record<string, SceneWindow>;
 
 export type SceneId = keyof typeof SCENE_WINDOWS;

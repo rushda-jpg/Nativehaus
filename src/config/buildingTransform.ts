@@ -36,11 +36,12 @@ export const BUILDING_OFFSET_Y_METERS = 0;
 export const BUILDING_SCALE_X = 1;
 export const BUILDING_SCALE_Y = 1;
 
-/** Documented ceiling for the current G+Podium+5+roof massing (well
- * under the 35m planning maximum) — informational for the debug HUD and
- * for a future GLB to target, not an active rescale of buildingBuilder's
- * own floor-height constants. */
-export const BUILDING_HEIGHT_M = 25.5;
+/** Documented ceiling for the current Ground + 6 upper floors + modest
+ * rooftop structure massing (well under the 35m planning maximum;
+ * G+6 only — there is no podium or mezzanine level) — informational for
+ * the debug HUD and for a future GLB to target, not an active rescale of
+ * buildingBuilder's own floor-height constants. */
+export const BUILDING_HEIGHT_M = 25.1;
 
 function offsetLocal(): Local2 {
   const [cx, cy] = BUILDING_FOOTPRINT_CENTER_LOCAL;

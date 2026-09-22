@@ -311,6 +311,33 @@ export const ACCESS_FRONT_ARROW_LOCAL: Local2[] = [
   add(safeAnchor, scale(bisector, 8)),
 ];
 
+// ---- Hero-reveal camera target (end of the opening cinematic) ----------
+// The final camera (Scene 2's front three-quarter reveal) looks back at the
+// building from out on the road corner. Both the look-at point and the
+// facing bearing are derived from the same digitized geometry as the debug
+// arrow above (`bisector`, the outward road-corner direction) — not
+// hand-guessed — so the hero shot stays locked to the real site.
+
+/** Ground point the hero camera looks at: biased toward the road-corner
+ * (30% of the way from the corner-nearest footprint corner to the
+ * footprint center) so the rounded corner reads prominently in frame
+ * while the long facade still recedes naturally beside it. */
+export const FRONT_VIEW_TARGET_LOCAL: Local2 = [
+  safeAnchor[0] + (BUILDING_FOOTPRINT_CENTER_LOCAL[0] - safeAnchor[0]) * 0.3,
+  safeAnchor[1] + (BUILDING_FOOTPRINT_CENTER_LOCAL[1] - safeAnchor[1]) * 0.3,
+];
+
+function compassBearingDeg(v: Local2): number {
+  // Mapbox `bearing`: degrees clockwise from north. East/North components
+  // of a real-world vector map directly onto this via atan2(E, N).
+  return ((Math.atan2(v[0], v[1]) * 180) / Math.PI + 360) % 360;
+}
+
+/** Mapbox compass bearing (0=N, 90=E, clockwise) for the hero camera: the
+ * direction FROM the road corner BACK TOWARD the building, i.e. the
+ * reverse of `bisector` (which points from the building out to the road). */
+export const FRONT_VIEW_BEARING_DEG = (compassBearingDeg(bisector) + 180) % 360;
+
 // ---- Local meters -> real lng/lat ---------------------------------------
 export function localToLngLat(point: Local2): LngLat {
   return epsg3997ToWgs84(point[0], point[1]);

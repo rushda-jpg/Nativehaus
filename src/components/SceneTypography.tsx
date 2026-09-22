@@ -13,8 +13,11 @@ export const SceneTypography = forwardRef<SceneTypographyHandle>(function SceneT
 
   useImperativeHandle(ref, () => ({
     update(progress: number) {
+      // Site-identification label: appears as the plot boundary draws in,
+      // then clears well before construction gets going so it never
+      // lingers over the rising building.
       const fadeIn = windowProgress(progress, SCENE_WINDOWS.plotBoundary.window);
-      const fadeOutRange: [number, number] = [SCENE_WINDOWS.glazing.window[0], SCENE_WINDOWS.landscaping.window[1]];
+      const fadeOutRange: [number, number] = [SCENE_WINDOWS.plotBoundary.window[1], SCENE_WINDOWS.slab.window[1]];
       const fadeOut = 1 - windowProgress(progress, fadeOutRange);
       const visibility = Math.min(fadeIn, fadeOut);
 

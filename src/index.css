@@ -117,6 +117,49 @@ body {
   color: #8f8a7d;
 }
 
+.hero-reveal {
+  position: absolute;
+  left: 50%;
+  bottom: 11vh;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.hero-reveal__title,
+.hero-reveal__meta,
+.hero-reveal__tagline {
+  text-transform: uppercase;
+  font-weight: 300;
+  color: #ece7dc;
+}
+
+.hero-reveal__title {
+  font-size: clamp(2.6rem, 5.6vw, 5.2rem);
+  letter-spacing: 0.07em;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.hero-reveal__meta {
+  font-size: 0.85rem;
+  letter-spacing: 0.36em;
+  color: #b9b3a4;
+}
+
+.hero-reveal__tagline {
+  font-size: 0.72rem;
+  letter-spacing: 0.28em;
+  color: #8f8a7d;
+}
+
 .debug-hud {
   position: fixed;
   top: 1.25rem;

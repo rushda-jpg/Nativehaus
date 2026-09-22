@@ -24,32 +24,25 @@ const FOOTPRINT_WIDTH = BUILDING_FOOTPRINT_WIDTH_M; // long facade, along the 58
 const FOOTPRINT_DEPTH = BUILDING_FOOTPRINT_DEPTH_M;
 const CORNER_RADIUS = 6; // generous rounded-corner curvature
 
-// Official massing: Ground + Podium + 5 upper residential levels + roof
-// (2 basement levels are part of the approved massing but not modeled —
-// they aren't visible above grade). Max height stays well under the 35m
-// planning limit.
-const GROUND_FLOOR_HEIGHT = 4.4; // tall sculptural ground floor (arches/columns)
-const PODIUM_HEIGHT = 3.6;
+// Official massing: Ground + 6 upper residential levels + a modest
+// rooftop structure. There is NO podium and NO mezzanine level — every
+// upper floor shares the same footprint/inset, reading as a continuous
+// run of repeated residential levels. Max height stays well under the
+// 35m planning limit (2 basement levels are part of the approved massing
+// but not modeled — they aren't visible above grade).
+const GROUND_FLOOR_HEIGHT = 4.8; // tall sculptural ground floor (arches/columns)
 const FLOOR_HEIGHT = 3.0;
-const UPPER_FLOOR_COUNT = 5;
-const TOP_FLOOR_SETBACK = 3.0; // "Top floor: 3m setback from floors below"
-const ROOF_HEIGHT = 2.2;
+const UPPER_FLOOR_COUNT = 6;
+const ROOF_PARAPET_HEIGHT = 0.5; // thin flat cap along the roofline
+const ROOF_STRUCTURE_HEIGHT = 1.8; // small lift/stair overrun only — must not dominate
 const FLOOR_INSET = { width: FOOTPRINT_WIDTH - 4, depth: FOOTPRINT_DEPTH - 4 };
+// The rooftop structure reads as a minor architectural element sitting on
+// the flat roof, not a second building — a fraction of the floor plate.
+const ROOF_STRUCTURE_SIZE = { width: FOOTPRINT_WIDTH * 0.3, depth: FOOTPRINT_DEPTH * 0.42 };
 
 const GROUND_TOP = GROUND_FLOOR_HEIGHT;
-const PODIUM_TOP = GROUND_TOP + PODIUM_HEIGHT;
-const FLOORS_TOP = PODIUM_TOP + UPPER_FLOOR_COUNT * FLOOR_HEIGHT;
-
-function isTopFloor(index: number): boolean {
-  return index === UPPER_FLOOR_COUNT - 1;
-}
-function floorFootprintFor(index: number): { width: number; depth: number } {
-  if (!isTopFloor(index)) return FLOOR_INSET;
-  return {
-    width: FLOOR_INSET.width - TOP_FLOOR_SETBACK * 2,
-    depth: FLOOR_INSET.depth - TOP_FLOOR_SETBACK * 2,
-  };
-}
+const FLOORS_TOP = GROUND_TOP + UPPER_FLOOR_COUNT * FLOOR_HEIGHT;
+const PARAPET_TOP = FLOORS_TOP + ROOF_PARAPET_HEIGHT;
 
 // Ground-floor warm-lighting target intensity; landscaping adds a small
 // final bump on top of this once construction completes (see below).
@@ -218,36 +211,42 @@ function buildGroundFloor(): { stage: Stage; columns: THREE.Mesh[] } {
   return { stage: { group, setLocal }, columns };
 }
 
-/** Podium + the 5 upper residential floors + roof, rising sequentially
- * (podium first, then each floor, then the roof). The top floor's mass
- * is inset per the official 3m top-floor setback. */
+/** The 6 upper residential floors, a thin flat roof parapet, and a small
+ * rooftop structure, rising sequentially floor by floor. Every upper
+ * floor shares the same footprint (no podium, no top-floor setback) so
+ * the massing reads as continuous repeated residential levels topped by
+ * a restrained, non-dominant roofline — not the earlier oversized
+ * capsule roof. */
 function buildMassing(): Stage {
   const group = new THREE.Group();
 
-  const podiumMesh = growFromBase(
-    extrudedRoundedMass(FOOTPRINT_WIDTH - 2, FOOTPRINT_DEPTH - 2, PODIUM_HEIGHT, CORNER_RADIUS - 0.5),
-    materials.facade,
-    GROUND_TOP,
-  );
-  group.add(podiumMesh);
-
   const floorMeshes: THREE.Mesh[] = [];
   for (let i = 0; i < UPPER_FLOOR_COUNT; i++) {
-    const y = PODIUM_TOP + i * FLOOR_HEIGHT;
-    const { width, depth } = floorFootprintFor(i);
-    const mesh = growFromBase(extrudedRoundedMass(width, depth, FLOOR_HEIGHT, CORNER_RADIUS), materials.facade, y);
+    const y = GROUND_TOP + i * FLOOR_HEIGHT;
+    const mesh = growFromBase(
+      extrudedRoundedMass(FLOOR_INSET.width, FLOOR_INSET.depth, FLOOR_HEIGHT, CORNER_RADIUS),
+      materials.facade,
+      y,
+    );
     group.add(mesh);
     floorMeshes.push(mesh);
   }
 
-  const roofMesh = growFromBase(
-    extrudedRoundedMass(FLOOR_INSET.width - 8, FLOOR_INSET.depth - 6, ROOF_HEIGHT, CORNER_RADIUS - 1),
+  const parapetMesh = growFromBase(
+    extrudedRoundedMass(FLOOR_INSET.width, FLOOR_INSET.depth, ROOF_PARAPET_HEIGHT, CORNER_RADIUS),
     materials.roof,
     FLOORS_TOP,
   );
-  group.add(roofMesh);
+  group.add(parapetMesh);
 
-  const riseSequence = [podiumMesh, ...floorMeshes, roofMesh];
+  const roofStructureMesh = growFromBase(
+    extrudedRoundedMass(ROOF_STRUCTURE_SIZE.width, ROOF_STRUCTURE_SIZE.depth, ROOF_STRUCTURE_HEIGHT, 1.5),
+    materials.roof,
+    PARAPET_TOP,
+  );
+  group.add(roofStructureMesh);
+
+  const riseSequence = [...floorMeshes, parapetMesh, roofStructureMesh];
   const setLocal = (t: number) => {
     const slot = 1 / riseSequence.length;
     riseSequence.forEach((mesh, i) => {
@@ -267,11 +266,11 @@ function buildBalconyBands(): Stage {
   const bandHeight = 0.32;
   const offsetZ = FLOOR_INSET.depth / 2 + bandDepth / 2 - 0.2;
 
-  // The recessed top floor reads as a set-back terrace level, not a
-  // typical balcony floor — so it's excluded here.
-  const balconyFloorCount = UPPER_FLOOR_COUNT - 1;
+  // Continuous horizontal balcony bands run across every upper floor —
+  // there is no recessed/setback top floor in the G+6 massing.
+  const balconyFloorCount = UPPER_FLOOR_COUNT;
   for (let i = 0; i < balconyFloorCount; i++) {
-    const y = PODIUM_TOP + i * FLOOR_HEIGHT + 0.1;
+    const y = GROUND_TOP + i * FLOOR_HEIGHT + 0.1;
     for (const side of [1, -1]) {
       const mesh = new THREE.Mesh(baseBox(bandWidth, bandHeight, bandDepth), materials.balcony);
       mesh.position.set(0, y, side * offsetZ);
@@ -296,7 +295,7 @@ function buildBalconyBands(): Stage {
 function buildFacadeFins(): Stage {
   const group = new THREE.Group();
   const meshes: THREE.Mesh[] = [];
-  const finHeight = FLOORS_TOP - PODIUM_TOP;
+  const finHeight = FLOORS_TOP - GROUND_TOP;
   const finCountPerSide = 13;
   const spacing = FLOOR_INSET.width / (finCountPerSide + 1);
   const z = FLOOR_INSET.depth / 2 + 0.15;
@@ -304,7 +303,7 @@ function buildFacadeFins(): Stage {
   for (const side of [1, -1]) {
     for (let i = 0; i < finCountPerSide; i++) {
       const x = -FLOOR_INSET.width / 2 + spacing * (i + 1);
-      const mesh = growFromBase(baseBox(0.3, finHeight, 0.3), materials.fin, PODIUM_TOP);
+      const mesh = growFromBase(baseBox(0.3, finHeight, 0.3), materials.fin, GROUND_TOP);
       mesh.position.x = x;
       mesh.position.z = side * z;
       group.add(mesh);
@@ -323,41 +322,69 @@ function buildFacadeFins(): Stage {
   return { group, setLocal };
 }
 
-/** Per-floor glazing panels (rather than one tall panel per facade) so the
- * lighting stage can switch interior warmth on floor-by-floor. Each
- * panel is sized to its own floor's footprint, so the recessed top floor
- * gets a correspondingly recessed glazing line. */
-function buildGlazing(): { stage: Stage; floorPanelMaterials: THREE.MeshPhysicalMaterial[][] } {
+/** Deterministic pseudo-random in [0,1) — used to pick which windows
+ * light up so every reload/scroll direction looks the same. */
+function pseudoRandom(seed: number): number {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** Per-window target emissive intensity: most windows light warmly at
+ * varying strength, a minority stay dark — "avoid making every window
+ * equally bright" without modeling individual apartment interiors. */
+function selectiveWindowTarget(seed: number): number {
+  if (pseudoRandom(seed) < 0.22) return 0;
+  return 0.5 + pseudoRandom(seed + 0.37) * 1.3;
+}
+
+interface GlazingSegment {
+  material: THREE.MeshPhysicalMaterial;
+  targetIntensity: number;
+}
+
+const GLAZING_SEGMENTS_PER_SIDE = 5;
+
+/** Per-floor glazing, split into a few segments per facade (rather than
+ * one tall panel, and well short of individually-modeled windows) so the
+ * lighting stage can vary warmth window-by-window and floor-by-floor.
+ * Every upper floor shares the same footprint (no podium, no top-floor
+ * setback). */
+function buildGlazing(): { stage: Stage; floorSegments: GlazingSegment[][] } {
   const group = new THREE.Group();
   const meshes: THREE.Mesh[] = [];
-  const floorPanelMaterials: THREE.MeshPhysicalMaterial[][] = [];
+  const floorSegments: GlazingSegment[][] = [];
   const panelHeight = FLOOR_HEIGHT - 0.4;
   const depth = 0.15;
+  const zOffset = FLOOR_INSET.depth / 2 - 0.05;
+  const segmentWidth = (FLOOR_INSET.width - 2) / GLAZING_SEGMENTS_PER_SIDE;
+  const segmentSpan = segmentWidth * 0.8; // small gap between segments reads as mullions
 
   for (let floor = 0; floor < UPPER_FLOOR_COUNT; floor++) {
-    const y = PODIUM_TOP + floor * FLOOR_HEIGHT + 0.2;
-    const { width, depth: floorDepth } = floorFootprintFor(floor);
-    const zOffset = floorDepth / 2 - 0.05;
-    const sideMats: THREE.MeshPhysicalMaterial[] = [];
+    const y = GROUND_TOP + floor * FLOOR_HEIGHT + 0.2;
+    const segments: GlazingSegment[] = [];
     for (const side of [1, -1]) {
-      const material = new THREE.MeshPhysicalMaterial({
-        color: 0x8a95a3,
-        roughness: 0.12,
-        metalness: 0,
-        transparent: true,
-        opacity: 0,
-        transmission: 0.35,
-        reflectivity: 0.7,
-        emissive: 0xffc98a,
-        emissiveIntensity: 0,
-      });
-      const mesh = growFromBase(baseBox(width - 2, panelHeight, depth), material, y);
-      mesh.position.z = side * zOffset;
-      group.add(mesh);
-      meshes.push(mesh);
-      sideMats.push(material);
+      for (let seg = 0; seg < GLAZING_SEGMENTS_PER_SIDE; seg++) {
+        const x = -(FLOOR_INSET.width - 2) / 2 + segmentWidth * (seg + 0.5);
+        const material = new THREE.MeshPhysicalMaterial({
+          color: 0x8a95a3,
+          roughness: 0.12,
+          metalness: 0,
+          transparent: true,
+          opacity: 0,
+          transmission: 0.35,
+          reflectivity: 0.7,
+          emissive: 0xffc98a,
+          emissiveIntensity: 0,
+        });
+        const mesh = growFromBase(baseBox(segmentSpan, panelHeight, depth), material, y);
+        mesh.position.x = x;
+        mesh.position.z = side * zOffset;
+        group.add(mesh);
+        meshes.push(mesh);
+        segments.push({ material, targetIntensity: selectiveWindowTarget(floor * 97 + side * 31 + seg) });
+      }
     }
-    floorPanelMaterials.push(sideMats);
+    floorSegments.push(segments);
   }
 
   const setLocal = (t: number) => {
@@ -368,10 +395,10 @@ function buildGlazing(): { stage: Stage; floorPanelMaterials: THREE.MeshPhysical
     });
   };
 
-  return { stage: { group, setLocal }, floorPanelMaterials };
+  return { stage: { group, setLocal }, floorSegments };
 }
 
-function buildLighting(floorPanelMaterials: THREE.MeshPhysicalMaterial[][], columns: THREE.Mesh[]): Stage {
+function buildLighting(floorSegments: GlazingSegment[][], columns: THREE.Mesh[]): Stage {
   const group = new THREE.Group();
   const lights: THREE.PointLight[] = [];
   const coveMeshes: THREE.Mesh[] = [];
@@ -390,7 +417,7 @@ function buildLighting(floorPanelMaterials: THREE.MeshPhysicalMaterial[][], colu
   }
 
   const roofLight = new THREE.PointLight(0xffe3b0, 0, 24);
-  roofLight.position.set(0, FLOORS_TOP + ROOF_HEIGHT + 2, 0);
+  roofLight.position.set(0, PARAPET_TOP + ROOF_STRUCTURE_HEIGHT + 2, 0);
   group.add(roofLight);
 
   const coveWidth = FOOTPRINT_WIDTH - 5;
@@ -403,13 +430,16 @@ function buildLighting(floorPanelMaterials: THREE.MeshPhysicalMaterial[][], colu
 
   const setLocal = (t: number) => {
     // Warm interior lights switch on floor-by-floor across the first 70%
-    // of this phase...
+    // of this phase, each window ramping toward its own selective target
+    // (see selectiveWindowTarget) rather than a single uniform intensity.
     const floorWindow = 0.7;
     const floorSlot = floorWindow / UPPER_FLOOR_COUNT;
-    floorPanelMaterials.forEach((sideMats, i) => {
+    floorSegments.forEach((segments, i) => {
       const localStart = i * floorSlot;
       const localT = Math.min(1, Math.max(0, (t - localStart) / floorSlot));
-      sideMats.forEach((mat) => (mat.emissiveIntensity = localT * 1.6));
+      segments.forEach(({ material, targetIntensity }) => {
+        material.emissiveIntensity = localT * targetIntensity;
+      });
     });
 
     // ...ground-floor architectural lighting (columns, cove, roof accent)
@@ -506,8 +536,8 @@ export function createProceduralBuilding(): BuildingModel {
   const massing = buildMassing();
   const balconies = buildBalconyBands();
   const fins = buildFacadeFins();
-  const { stage: glazing, floorPanelMaterials } = buildGlazing();
-  const lighting = buildLighting(floorPanelMaterials, columns);
+  const { stage: glazing, floorSegments } = buildGlazing();
+  const lighting = buildLighting(floorSegments, columns);
   const landscaping = buildLandscaping();
 
   root.add(
