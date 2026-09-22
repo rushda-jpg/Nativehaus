@@ -29,6 +29,24 @@ export const SITE_PLOT_RING: LngLat[] = [
   [55.2008, 25.04815],
 ];
 
+// Large box (well outside any framed viewport from siteApproach onward)
+// with the plot cut out as a hole, used to dim the surroundings while
+// leaving the actual parcel untouched — see MapCanvas's dim-mask layer.
+// Exterior ring wound CCW, hole (the plot) wound CW, per the GeoJSON
+// right-hand rule; SITE_PLOT_RING is already CW so it's used as-is.
+function boxRing(center: LngLat, halfWidthDeg: number, halfHeightDeg: number): LngLat[] {
+  const [lng, lat] = center;
+  return [
+    [lng - halfWidthDeg, lat - halfHeightDeg],
+    [lng + halfWidthDeg, lat - halfHeightDeg],
+    [lng + halfWidthDeg, lat + halfHeightDeg],
+    [lng - halfWidthDeg, lat + halfHeightDeg],
+    [lng - halfWidthDeg, lat - halfHeightDeg],
+  ];
+}
+
+export const SITE_DIM_MASK_RINGS: LngLat[][] = [boxRing(NATIVE_HAUS_SITE, 0.025, 0.025), SITE_PLOT_RING];
+
 export const CAMERA_KEYFRAMES: CameraKeyframe[] = [
   // Deep space — far above the Gulf, near-flat globe view.
   { progress: 0.0, center: [55.4, 24.6], zoom: 0.4, pitch: 0, bearing: 0 },

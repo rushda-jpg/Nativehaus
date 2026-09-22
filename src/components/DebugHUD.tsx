@@ -1,16 +1,15 @@
 import { forwardRef, useImperativeHandle, useRef } from "react";
 import { sceneNameForProgress } from "../config/scenes";
+import { isDebugMode } from "../lib/queryFlags";
 
 export interface DebugHUDHandle {
   update(progress: number): void;
 }
 
-// Flip to false (or wire up to a query param) to ship without the HUD.
-export const DEBUG_HUD_ENABLED = true;
-
 export const DebugHUD = forwardRef<DebugHUDHandle>(function DebugHUD(_, ref) {
   const progressRef = useRef<HTMLSpanElement>(null);
   const sceneRef = useRef<HTMLSpanElement>(null);
+  const enabled = isDebugMode();
 
   useImperativeHandle(ref, () => ({
     update(progress: number) {
@@ -19,7 +18,7 @@ export const DebugHUD = forwardRef<DebugHUDHandle>(function DebugHUD(_, ref) {
     },
   }));
 
-  if (!DEBUG_HUD_ENABLED) return null;
+  if (!enabled) return null;
 
   return (
     <div className="debug-hud" aria-hidden="true">

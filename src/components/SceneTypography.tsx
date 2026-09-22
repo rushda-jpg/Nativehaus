@@ -5,17 +5,14 @@ export interface SceneTypographyHandle {
   update(progress: number): void;
 }
 
+// The environment's dimming is handled geographically by MapCanvas's dim
+// mask (which leaves the actual parcel untouched); this component is just
+// the restrained text overlay.
 export const SceneTypography = forwardRef<SceneTypographyHandle>(function SceneTypography(_, ref) {
-  const backdropRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
 
   useImperativeHandle(ref, () => ({
     update(progress: number) {
-      const dim = windowProgress(progress, SCENE_WINDOWS.siteApproach.window);
-      if (backdropRef.current) {
-        backdropRef.current.style.opacity = String(dim * 0.55);
-      }
-
       const fadeIn = windowProgress(progress, SCENE_WINDOWS.plotBoundary.window);
       const fadeOutRange: [number, number] = [SCENE_WINDOWS.glazing.window[0], SCENE_WINDOWS.landscaping.window[1]];
       const fadeOut = 1 - windowProgress(progress, fadeOutRange);
@@ -29,13 +26,13 @@ export const SceneTypography = forwardRef<SceneTypographyHandle>(function SceneT
   }));
 
   return (
-    <>
-      <div ref={backdropRef} className="scene-backdrop" />
-      <div ref={textRef} className="site-typography">
-        <span className="site-typography__eyebrow">THE SITE</span>
-        <span className="site-typography__title">NATIVE HAUS</span>
-        <span className="site-typography__meta">JUMEIRAH VILLAGE TRIANGLE</span>
-      </div>
-    </>
+    <div ref={textRef} className="site-typography">
+      <span className="site-typography__eyebrow">
+        <span className="site-typography__accent" aria-hidden="true" />
+        THE SITE
+      </span>
+      <span className="site-typography__title">NATIVE HAUS</span>
+      <span className="site-typography__meta">JUMEIRAH VILLAGE TRIANGLE</span>
+    </div>
   );
 });

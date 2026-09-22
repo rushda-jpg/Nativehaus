@@ -1,3 +1,7 @@
+:root {
+  --native-red: #c1272d;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -63,15 +67,6 @@ body {
   opacity: 0.4;
 }
 
-.scene-backdrop {
-  position: absolute;
-  inset: 0;
-  background: #030610;
-  opacity: 0;
-  pointer-events: none;
-  z-index: 5;
-}
-
 .site-typography {
   position: absolute;
   left: 6vw;
@@ -93,9 +88,20 @@ body {
 }
 
 .site-typography__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
   font-size: 0.75rem;
   letter-spacing: 0.42em;
   color: #b9b3a4;
+}
+
+.site-typography__accent {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--native-red);
+  flex: none;
 }
 
 .site-typography__title {
@@ -146,4 +152,76 @@ body {
 
 .debug-hud__value {
   color: #ece7dc;
+}
+
+.calibration-panel {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 30;
+  width: 20rem;
+  max-width: calc(100vw - 2.5rem);
+  padding: 0.85rem 1rem;
+  background: rgba(4, 6, 10, 0.75);
+  border: 1px solid rgba(193, 39, 45, 0.4);
+  border-radius: 4px;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  color: #cdd3da;
+  backdrop-filter: blur(6px);
+}
+
+.calibration-panel__title {
+  color: var(--native-red);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  margin-bottom: 0.5rem;
+}
+
+.calibration-panel__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.15rem 0;
+}
+
+.calibration-panel__label {
+  color: #6b7280;
+  flex: none;
+}
+
+.calibration-panel__value {
+  color: #ece7dc;
+  text-align: right;
+  word-break: break-all;
+}
+
+.calibration-panel__copy {
+  width: 100%;
+  margin-top: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(193, 39, 45, 0.15);
+  border: 1px solid rgba(193, 39, 45, 0.5);
+  border-radius: 3px;
+  color: #ece7dc;
+  font-family: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.calibration-panel__copy:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.calibration-panel__copy:not(:disabled):hover {
+  background: rgba(193, 39, 45, 0.28);
+}
+
+.calibration-panel__hint {
+  margin-top: 0.6rem;
+  color: #6b7280;
+  line-height: 1.4;
 }

@@ -14,47 +14,54 @@ export interface BuildingModel {
   dispose(): void;
 }
 
-const FOOTPRINT_WIDTH = 34; // east-west, meters
-const FOOTPRINT_DEPTH = 20; // north-south, meters
-const CORNER_RADIUS = 3;
-const SLAB_HEIGHT = 0.5;
-const GROUND_FLOOR_HEIGHT = 4.2;
-const FLOOR_HEIGHT = 3.1;
-const FLOOR_COUNT = 6;
-const ROOF_HEIGHT = 2.6;
-const FLOOR_INSET = { width: FOOTPRINT_WIDTH - 1.5, depth: FOOTPRINT_DEPTH - 1.5 };
+// Wide, horizontal, low-rise massing — not a tower. Width is deliberately
+// much larger than the overall height so the building reads as long and
+// horizontal even from an oblique angle.
+const FOOTPRINT_WIDTH = 58; // east-west, meters — the long facade
+const FOOTPRINT_DEPTH = 34; // north-south, meters
+const CORNER_RADIUS = 6; // generous rounded-corner curvature
+const GROUND_FLOOR_HEIGHT = 4.4; // tall sculptural ground floor (arches/columns)
+const FLOOR_HEIGHT = 3.0;
+const FLOOR_COUNT = 6; // ground + 6 residential levels + roof (2 basements implied, not modeled)
+const ROOF_HEIGHT = 2.2;
+const FLOOR_INSET = { width: FOOTPRINT_WIDTH - 4, depth: FOOTPRINT_DEPTH - 4 };
 
-const GROUND_TOP = SLAB_HEIGHT + GROUND_FLOOR_HEIGHT;
+const GROUND_TOP = GROUND_FLOOR_HEIGHT;
 const FLOORS_TOP = GROUND_TOP + FLOOR_COUNT * FLOOR_HEIGHT;
 
+// Ground-floor warm-lighting target intensity; landscaping adds a small
+// final bump on top of this once construction completes (see below).
+const GROUND_LIGHT_TARGET = 1.1;
+
 const materials = {
-  slab: new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 0.9, metalness: 0.05 }),
+  // Warm sandstone/taupe ground floor — the "sculptural, illuminated" base.
   ground: new THREE.MeshStandardMaterial({
-    color: 0x14161a,
-    roughness: 0.5,
-    metalness: 0.2,
-    emissive: 0xd7b98a,
+    color: 0xc7b299,
+    roughness: 0.85,
+    metalness: 0.05,
+    emissive: 0xf4c98a,
     emissiveIntensity: 0,
   }),
-  facade: new THREE.MeshStandardMaterial({ color: 0xe9e6de, roughness: 0.75, metalness: 0.05 }),
-  roof: new THREE.MeshStandardMaterial({ color: 0xcfccc3, roughness: 0.8, metalness: 0.05 }),
-  balcony: new THREE.MeshStandardMaterial({ color: 0xd8d4c9, roughness: 0.6, metalness: 0.1 }),
-  fin: new THREE.MeshStandardMaterial({ color: 0xb9b3a4, roughness: 0.5, metalness: 0.3 }),
-  glazing: new THREE.MeshPhysicalMaterial({
-    color: 0x8fb8c9,
-    roughness: 0.1,
-    metalness: 0,
-    transparent: true,
-    opacity: 0.0,
-    transmission: 0.4,
-    reflectivity: 0.6,
+  // Bronze/champagne upper-floor facade.
+  facade: new THREE.MeshStandardMaterial({ color: 0xd8c8a8, roughness: 0.55, metalness: 0.25 }),
+  roof: new THREE.MeshStandardMaterial({ color: 0xb9a47e, roughness: 0.7, metalness: 0.15 }),
+  // Dark charcoal balcony bands (not pure black).
+  balcony: new THREE.MeshStandardMaterial({ color: 0x2b2b2e, roughness: 0.5, metalness: 0.15 }),
+  // Bronze vertical facade fins.
+  fin: new THREE.MeshStandardMaterial({ color: 0x9c8154, roughness: 0.35, metalness: 0.5 }),
+  // Ground-floor colonnade — warm stone columns, illuminated last.
+  column: new THREE.MeshStandardMaterial({
+    color: 0xc9b18f,
+    roughness: 0.6,
+    metalness: 0.2,
+    emissive: 0xffd9a0,
+    emissiveIntensity: 0,
   }),
   coveLight: new THREE.MeshStandardMaterial({
     color: 0xfff3d6,
-    emissive: 0xffdfa0,
+    emissive: 0xffcf99,
     emissiveIntensity: 0,
   }),
-  paving: new THREE.MeshStandardMaterial({ color: 0x2f2b26, roughness: 1 }),
   hedge: new THREE.MeshStandardMaterial({ color: 0x1f3322, roughness: 1 }),
   treeTrunk: new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 1 }),
   treeCanopy: new THREE.MeshStandardMaterial({ color: 0x274a2c, roughness: 1 }),
@@ -112,34 +119,85 @@ interface Stage {
   setLocal(t: number): void;
 }
 
-function buildSlab(): Stage {
-  const group = new THREE.Group();
-  const mesh = growFromBase(
-    extrudedRoundedMass(FOOTPRINT_WIDTH + 5, FOOTPRINT_DEPTH + 5, SLAB_HEIGHT, CORNER_RADIUS + 1),
-    materials.slab,
-    0,
-  );
-  group.add(mesh);
-  return { group, setLocal: (t) => (mesh.scale.y = t) };
+/** A soft radial-falloff "contact shadow" plane — no hard rectangular
+ * edge, so it reads as the building settling onto the ground rather than
+ * a platform. Replaces the old opaque slab/paving masses. */
+function createContactShadowTexture(): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, "rgba(0,0,0,0.42)");
+  gradient.addColorStop(0.55, "rgba(0,0,0,0.2)");
+  gradient.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
 }
 
-function buildGroundFloor(): Stage {
+function buildContactShadow(): Stage {
+  const group = new THREE.Group();
+  const texture = createContactShadowTexture();
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, opacity: 0 });
+  const geometry = new THREE.PlaneGeometry(FOOTPRINT_WIDTH + 22, FOOTPRINT_DEPTH + 18);
+  geometry.rotateX(-Math.PI / 2);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.y = 0.02;
+  mesh.scale.set(0.4, 1, 0.4);
+  group.add(mesh);
+
+  const setLocal = (t: number) => {
+    material.opacity = t * 0.9;
+    const s = 0.4 + t * 0.6;
+    mesh.scale.set(s, 1, s);
+  };
+
+  return { group, setLocal };
+}
+
+function buildGroundFloor(): { stage: Stage; columns: THREE.Mesh[] } {
   const group = new THREE.Group();
   const mesh = growFromBase(
     extrudedRoundedMass(FOOTPRINT_WIDTH, FOOTPRINT_DEPTH, GROUND_FLOOR_HEIGHT, CORNER_RADIUS),
     materials.ground,
-    SLAB_HEIGHT,
+    0,
   );
   group.add(mesh);
-  return {
-    group,
-    setLocal: (t) => {
-      mesh.scale.y = t;
-    },
+
+  // Sculptural ground-floor colonnade — slender columns along the two
+  // long facades, illuminated as part of the "ground floor activates
+  // last" lighting beat.
+  const columns: THREE.Mesh[] = [];
+  const columnHeight = GROUND_FLOOR_HEIGHT - 0.6;
+  const columnCountPerSide = 12;
+  const spacing = (FOOTPRINT_WIDTH - 6) / (columnCountPerSide - 1);
+  const z = FOOTPRINT_DEPTH / 2 - 0.4;
+  for (const side of [1, -1]) {
+    for (let i = 0; i < columnCountPerSide; i++) {
+      const x = -(FOOTPRINT_WIDTH - 6) / 2 + spacing * i;
+      const column = growFromBase(
+        new THREE.CylinderGeometry(0.28, 0.32, columnHeight, 12),
+        materials.column,
+        0.3,
+      );
+      column.position.x = x;
+      column.position.z = side * z;
+      group.add(column);
+      columns.push(column);
+    }
+  }
+
+  const setLocal = (t: number) => {
+    mesh.scale.y = t;
+    columns.forEach((column) => (column.scale.y = t));
   };
+
+  return { stage: { group, setLocal }, columns };
 }
 
-function buildFloors(): { stage: Stage; topY: number; roofGroup: THREE.Group } {
+function buildFloors(): { stage: Stage; topY: number } {
   const group = new THREE.Group();
   const meshes: THREE.Mesh[] = [];
   for (let i = 0; i < FLOOR_COUNT; i++) {
@@ -155,7 +213,7 @@ function buildFloors(): { stage: Stage; topY: number; roofGroup: THREE.Group } {
 
   const roofGroup = new THREE.Group();
   const roofMesh = growFromBase(
-    extrudedRoundedMass(FLOOR_INSET.width - 6, FLOOR_INSET.depth - 5, ROOF_HEIGHT, CORNER_RADIUS - 0.5),
+    extrudedRoundedMass(FLOOR_INSET.width - 8, FLOOR_INSET.depth - 6, ROOF_HEIGHT, CORNER_RADIUS - 1),
     materials.roof,
     FLOORS_TOP,
   );
@@ -175,15 +233,15 @@ function buildFloors(): { stage: Stage; topY: number; roofGroup: THREE.Group } {
 
   const merged = new THREE.Group();
   merged.add(group, roofGroup);
-  return { stage: { group: merged, setLocal }, topY: FLOORS_TOP, roofGroup };
+  return { stage: { group: merged, setLocal }, topY: FLOORS_TOP };
 }
 
 function buildBalconyBands(): Stage {
   const group = new THREE.Group();
   const meshes: THREE.Mesh[] = [];
-  const bandWidth = FLOOR_INSET.width - 3;
-  const bandDepth = 1.7;
-  const bandHeight = 0.3;
+  const bandWidth = FLOOR_INSET.width - 4;
+  const bandDepth = 2.0;
+  const bandHeight = 0.32;
   const offsetZ = FLOOR_INSET.depth / 2 + bandDepth / 2 - 0.2;
 
   for (let i = 0; i < FLOOR_COUNT; i++) {
@@ -191,7 +249,7 @@ function buildBalconyBands(): Stage {
     for (const side of [1, -1]) {
       const mesh = new THREE.Mesh(baseBox(bandWidth, bandHeight, bandDepth), materials.balcony);
       mesh.position.set(0, y, side * offsetZ);
-      mesh.scale.x = 0; // grows outward from the centerline — "extends"
+      mesh.scale.x = 0; // grows outward from the centerline — "extends", and reads continuous
       group.add(mesh);
       meshes.push(mesh);
     }
@@ -213,7 +271,7 @@ function buildFacadeFins(): Stage {
   const group = new THREE.Group();
   const meshes: THREE.Mesh[] = [];
   const finHeight = FLOORS_TOP - GROUND_TOP;
-  const finCountPerSide = 9;
+  const finCountPerSide = 13;
   const spacing = FLOOR_INSET.width / (finCountPerSide + 1);
   const z = FLOOR_INSET.depth / 2 + 0.15;
 
@@ -239,72 +297,109 @@ function buildFacadeFins(): Stage {
   return { group, setLocal };
 }
 
-function buildGlazing(): Stage {
+/** Per-floor glazing panels (rather than one tall panel per facade) so the
+ * lighting stage can switch interior warmth on floor-by-floor. */
+function buildGlazing(): { stage: Stage; floorPanelMaterials: THREE.MeshPhysicalMaterial[][] } {
   const group = new THREE.Group();
   const meshes: THREE.Mesh[] = [];
-  const height = FLOORS_TOP - GROUND_TOP - 0.4;
+  const floorPanelMaterials: THREE.MeshPhysicalMaterial[][] = [];
+  const panelHeight = FLOOR_HEIGHT - 0.4;
   const width = FLOOR_INSET.width - 2;
   const depth = 0.15;
   const zOffset = FLOOR_INSET.depth / 2 - 0.05;
 
-  for (const side of [1, -1]) {
-    const mesh = growFromBase(baseBox(width, height, depth), materials.glazing.clone(), GROUND_TOP + 0.2);
-    mesh.position.z = side * zOffset;
-    group.add(mesh);
-    meshes.push(mesh);
+  for (let floor = 0; floor < FLOOR_COUNT; floor++) {
+    const y = GROUND_TOP + floor * FLOOR_HEIGHT + 0.2;
+    const sideMats: THREE.MeshPhysicalMaterial[] = [];
+    for (const side of [1, -1]) {
+      const material = new THREE.MeshPhysicalMaterial({
+        color: 0x8a95a3,
+        roughness: 0.12,
+        metalness: 0,
+        transparent: true,
+        opacity: 0,
+        transmission: 0.35,
+        reflectivity: 0.7,
+        emissive: 0xffc98a,
+        emissiveIntensity: 0,
+      });
+      const mesh = growFromBase(baseBox(width, panelHeight, depth), material, y);
+      mesh.position.z = side * zOffset;
+      group.add(mesh);
+      meshes.push(mesh);
+      sideMats.push(material);
+    }
+    floorPanelMaterials.push(sideMats);
   }
 
   const setLocal = (t: number) => {
     meshes.forEach((mesh) => {
       mesh.scale.y = t;
       const mat = mesh.material as THREE.MeshPhysicalMaterial;
-      mat.opacity = 0.55 * t;
+      mat.opacity = 0.5 * t;
     });
   };
 
-  return { group, setLocal };
+  return { stage: { group, setLocal }, floorPanelMaterials };
 }
 
-function buildLighting(roofGroup: THREE.Group): Stage {
+function buildLighting(
+  floorPanelMaterials: THREE.MeshPhysicalMaterial[][],
+  columns: THREE.Mesh[],
+): Stage {
   const group = new THREE.Group();
   const lights: THREE.PointLight[] = [];
   const coveMeshes: THREE.Mesh[] = [];
 
   const positions: [number, number][] = [
-    [FOOTPRINT_WIDTH / 2 - 3, FOOTPRINT_DEPTH / 2 - 3],
-    [-(FOOTPRINT_WIDTH / 2 - 3), FOOTPRINT_DEPTH / 2 - 3],
-    [FOOTPRINT_WIDTH / 2 - 3, -(FOOTPRINT_DEPTH / 2 - 3)],
-    [-(FOOTPRINT_WIDTH / 2 - 3), -(FOOTPRINT_DEPTH / 2 - 3)],
+    [FOOTPRINT_WIDTH / 2 - 4, FOOTPRINT_DEPTH / 2 - 4],
+    [-(FOOTPRINT_WIDTH / 2 - 4), FOOTPRINT_DEPTH / 2 - 4],
+    [FOOTPRINT_WIDTH / 2 - 4, -(FOOTPRINT_DEPTH / 2 - 4)],
+    [-(FOOTPRINT_WIDTH / 2 - 4), -(FOOTPRINT_DEPTH / 2 - 4)],
   ];
   for (const [x, z] of positions) {
-    const light = new THREE.PointLight(0xffcf8a, 0, 14);
+    const light = new THREE.PointLight(0xffcf8a, 0, 18);
     light.position.set(x, GROUND_TOP - 1, z);
     group.add(light);
     lights.push(light);
   }
 
-  const roofLight = new THREE.PointLight(0xbfe3ff, 0, 20);
+  const roofLight = new THREE.PointLight(0xffe3b0, 0, 24);
   roofLight.position.set(0, FLOORS_TOP + ROOF_HEIGHT + 2, 0);
   group.add(roofLight);
-  lights.push(roofLight);
 
-  const coveWidth = FOOTPRINT_WIDTH - 4;
+  const coveWidth = FOOTPRINT_WIDTH - 5;
   for (const side of [1, -1]) {
     const mesh = new THREE.Mesh(baseBox(coveWidth, 0.12, 0.12), materials.coveLight.clone());
     mesh.position.set(0, GROUND_TOP - 0.1, (side * FOOTPRINT_DEPTH) / 2 - 0.3);
     group.add(mesh);
     coveMeshes.push(mesh);
   }
-  void roofGroup;
 
   const setLocal = (t: number) => {
-    lights.forEach((light) => {
-      light.intensity = t * (light === roofLight ? 2.2 : 1.6);
+    // Warm interior lights switch on floor-by-floor across the first 70%
+    // of this phase...
+    const floorWindow = 0.7;
+    const floorSlot = floorWindow / FLOOR_COUNT;
+    floorPanelMaterials.forEach((sideMats, i) => {
+      const localStart = i * floorSlot;
+      const localT = Math.min(1, Math.max(0, (t - localStart) / floorSlot));
+      sideMats.forEach((mat) => (mat.emissiveIntensity = localT * 1.6));
     });
-    materials.ground.emissiveIntensity = t * 0.9;
+
+    // ...ground-floor architectural lighting (columns, cove, roof accent)
+    // activates last, over the remaining 30%.
+    const groundStart = floorWindow;
+    const groundT = Math.min(1, Math.max(0, (t - groundStart) / (1 - groundStart)));
+    materials.ground.emissiveIntensity = groundT * GROUND_LIGHT_TARGET;
+    columns.forEach((column) => {
+      (column.material as THREE.MeshStandardMaterial).emissiveIntensity = groundT * 1.3;
+    });
     coveMeshes.forEach((mesh) => {
-      (mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = t * 2.4;
+      (mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = groundT * 2.2;
     });
+    lights.forEach((light) => (light.intensity = groundT * 1.6));
+    roofLight.intensity = t * 1.4;
   };
 
   return { group, setLocal };
@@ -313,14 +408,10 @@ function buildLighting(roofGroup: THREE.Group): Stage {
 function buildLandscaping(): Stage {
   const group = new THREE.Group();
 
-  const paving = new THREE.Mesh(baseBox(FOOTPRINT_WIDTH + 34, 0.08, FOOTPRINT_DEPTH + 22), materials.paving);
-  paving.scale.set(0, 1, 0);
-  group.add(paving);
-
   const hedges: THREE.Mesh[] = [];
   const hedgeRadiusX = FOOTPRINT_WIDTH / 2 + 8;
   const hedgeRadiusZ = FOOTPRINT_DEPTH / 2 + 8;
-  const hedgeCount = 14;
+  const hedgeCount = 18;
   for (let i = 0; i < hedgeCount; i++) {
     const angle = (i / hedgeCount) * Math.PI * 2;
     const x = Math.cos(angle) * hedgeRadiusX;
@@ -355,7 +446,6 @@ function buildLandscaping(): Stage {
   }
 
   const setLocal = (t: number) => {
-    paving.scale.set(t, 1, t);
     hedges.forEach((mesh, i) => {
       const localStart = (i / hedges.length) * 0.5;
       mesh.scale.y = Math.min(1, Math.max(0, (t - localStart) / 0.5));
@@ -365,6 +455,9 @@ function buildLandscaping(): Stage {
       const s = Math.min(1, Math.max(0, (t - localStart) / 0.5));
       tree.scale.setScalar(s);
     });
+    // Final brightness increases slightly relative to the surrounding
+    // satellite imagery, once the building has finished assembling.
+    materials.ground.emissiveIntensity = GROUND_LIGHT_TARGET + t * 0.15;
   };
 
   return { group, setLocal };
@@ -373,22 +466,22 @@ function buildLandscaping(): Stage {
 export function createProceduralBuilding(): BuildingModel {
   const root = new THREE.Object3D();
 
-  const ambient = new THREE.AmbientLight(0x8fa3bf, 0.55);
-  const sun = new THREE.DirectionalLight(0xfff3e0, 1.1);
+  const ambient = new THREE.AmbientLight(0xb8a98c, 0.5);
+  const sun = new THREE.DirectionalLight(0xffdfb0, 1.05);
   sun.position.set(40, 60, -20);
   root.add(ambient, sun);
 
-  const slab = buildSlab();
-  const ground = buildGroundFloor();
-  const { stage: floors, roofGroup } = buildFloors();
+  const contactShadow = buildContactShadow();
+  const { stage: ground, columns } = buildGroundFloor();
+  const { stage: floors } = buildFloors();
   const balconies = buildBalconyBands();
   const fins = buildFacadeFins();
-  const glazing = buildGlazing();
-  const lighting = buildLighting(roofGroup);
+  const { stage: glazing, floorPanelMaterials } = buildGlazing();
+  const lighting = buildLighting(floorPanelMaterials, columns);
   const landscaping = buildLandscaping();
 
   root.add(
-    slab.group,
+    contactShadow.group,
     ground.group,
     floors.group,
     balconies.group,
@@ -399,7 +492,7 @@ export function createProceduralBuilding(): BuildingModel {
   );
 
   function setProgress(progress: number) {
-    slab.setLocal(windowProgress(progress, SCENE_WINDOWS.slab.window));
+    contactShadow.setLocal(windowProgress(progress, SCENE_WINDOWS.slab.window));
     ground.setLocal(windowProgress(progress, SCENE_WINDOWS.groundFloor.window));
     floors.setLocal(windowProgress(progress, SCENE_WINDOWS.floorsRising.window));
     balconies.setLocal(windowProgress(progress, SCENE_WINDOWS.balconyBands.window));
