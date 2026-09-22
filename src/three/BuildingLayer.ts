@@ -23,6 +23,7 @@ export class BuildingLayer implements mapboxgl.CustomLayerInterface {
 
   private origin: LngLat;
   private model: BuildingModel;
+  private rotationRad: number;
   private mercatorOrigin!: mapboxgl.MercatorCoordinate;
   private scale = 1;
 
@@ -31,12 +32,19 @@ export class BuildingLayer implements mapboxgl.CustomLayerInterface {
   private renderer?: THREE.WebGLRenderer;
   private map?: mapboxgl.Map;
 
-  constructor(id: string, origin: LngLat, model: BuildingModel) {
+  /**
+   * @param rotationDeg Rotates the building's footprint (around its own
+   * vertical axis) to match the plot's real-world orientation — same
+   * convention/value as `PLOT_ROTATION_DEG` in plotGeometry.ts, degrees,
+   * CCW. 0 leaves the model's authored +X (width) axis pointing East.
+   */
+  constructor(id: string, origin: LngLat, model: BuildingModel, rotationDeg = 0) {
     this.id = id;
     this.type = "custom";
     this.renderingMode = "3d";
     this.origin = origin;
     this.model = model;
+    this.rotationRad = (rotationDeg * Math.PI) / 180;
   }
 
   onAdd(map: mapboxgl.Map, gl: WebGL2RenderingContext) {
@@ -65,7 +73,10 @@ export class BuildingLayer implements mapboxgl.CustomLayerInterface {
     // Z-up mercator space. Rotate X by +90deg to reconcile the two, then
     // translate to the site's mercator position and scale meters ->
     // mercator units (Y flips sign to match mercator's south-positive Y).
+    // rotationY (applied first, while still Y-up) orients the footprint
+    // to match the plot's real-world bearing.
     const rotationX = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+    const rotationY = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0, 1, 0), this.rotationRad);
     const translation = new THREE.Matrix4().makeTranslation(
       this.mercatorOrigin.x,
       this.mercatorOrigin.y,
@@ -73,7 +84,7 @@ export class BuildingLayer implements mapboxgl.CustomLayerInterface {
     );
     const scaleMatrix = new THREE.Matrix4().makeScale(this.scale, -this.scale, this.scale);
 
-    const modelMatrix = translation.multiply(scaleMatrix).multiply(rotationX);
+    const modelMatrix = translation.multiply(scaleMatrix).multiply(rotationX).multiply(rotationY);
     const projectionMatrix = new THREE.Matrix4().fromArray(matrix).multiply(modelMatrix);
 
     this.camera.projectionMatrix = projectionMatrix;

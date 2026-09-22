@@ -144,6 +144,12 @@ body {
   margin-top: 0.2rem;
 }
 
+.debug-hud__row--divider {
+  margin-top: 0.45rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(236, 231, 220, 0.15);
+}
+
 .debug-hud__label {
   color: #6b7280;
   width: 4.2rem;

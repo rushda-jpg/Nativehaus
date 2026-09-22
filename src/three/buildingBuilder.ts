@@ -1,4 +1,10 @@
 import * as THREE from "three";
+import {
+  BUILDING_FOOTPRINT_DEPTH_M,
+  BUILDING_FOOTPRINT_WIDTH_M,
+  isInsidePlotRelativeToFootprint,
+  type Local2,
+} from "../config/plotGeometry";
 import { SCENE_WINDOWS, windowProgress } from "../config/scenes";
 
 /**
@@ -14,20 +20,40 @@ export interface BuildingModel {
   dispose(): void;
 }
 
-// Wide, horizontal, low-rise massing — not a tower. Width is deliberately
-// much larger than the overall height so the building reads as long and
-// horizontal even from an oblique angle.
-const FOOTPRINT_WIDTH = 58; // east-west, meters — the long facade
-const FOOTPRINT_DEPTH = 34; // north-south, meters
+// Footprint is fitted (in plotGeometry.ts) inside the official road-setback
+// envelope of the real parcel — not an arbitrary size. Wide, horizontal,
+// low-rise massing: width is much larger than the overall height so the
+// building reads as long and horizontal even from an oblique angle.
+const FOOTPRINT_WIDTH = BUILDING_FOOTPRINT_WIDTH_M; // long facade, along the 58.90m road edge
+const FOOTPRINT_DEPTH = BUILDING_FOOTPRINT_DEPTH_M;
 const CORNER_RADIUS = 6; // generous rounded-corner curvature
+
+// Official massing: Ground + Podium + 5 upper residential levels + roof
+// (2 basement levels are part of the approved massing but not modeled —
+// they aren't visible above grade). Max height stays well under the 35m
+// planning limit.
 const GROUND_FLOOR_HEIGHT = 4.4; // tall sculptural ground floor (arches/columns)
+const PODIUM_HEIGHT = 3.6;
 const FLOOR_HEIGHT = 3.0;
-const FLOOR_COUNT = 6; // ground + 6 residential levels + roof (2 basements implied, not modeled)
+const UPPER_FLOOR_COUNT = 5;
+const TOP_FLOOR_SETBACK = 3.0; // "Top floor: 3m setback from floors below"
 const ROOF_HEIGHT = 2.2;
 const FLOOR_INSET = { width: FOOTPRINT_WIDTH - 4, depth: FOOTPRINT_DEPTH - 4 };
 
 const GROUND_TOP = GROUND_FLOOR_HEIGHT;
-const FLOORS_TOP = GROUND_TOP + FLOOR_COUNT * FLOOR_HEIGHT;
+const PODIUM_TOP = GROUND_TOP + PODIUM_HEIGHT;
+const FLOORS_TOP = PODIUM_TOP + UPPER_FLOOR_COUNT * FLOOR_HEIGHT;
+
+function isTopFloor(index: number): boolean {
+  return index === UPPER_FLOOR_COUNT - 1;
+}
+function floorFootprintFor(index: number): { width: number; depth: number } {
+  if (!isTopFloor(index)) return FLOOR_INSET;
+  return {
+    width: FLOOR_INSET.width - TOP_FLOOR_SETBACK * 2,
+    depth: FLOOR_INSET.depth - TOP_FLOOR_SETBACK * 2,
+  };
+}
 
 // Ground-floor warm-lighting target intensity; landscaping adds a small
 // final bump on top of this once construction completes (see below).
@@ -42,7 +68,7 @@ const materials = {
     emissive: 0xf4c98a,
     emissiveIntensity: 0,
   }),
-  // Bronze/champagne upper-floor facade.
+  // Bronze/champagne upper-floor and podium facade.
   facade: new THREE.MeshStandardMaterial({ color: 0xd8c8a8, roughness: 0.55, metalness: 0.25 }),
   roof: new THREE.MeshStandardMaterial({ color: 0xb9a47e, roughness: 0.7, metalness: 0.15 }),
   // Dark charcoal balcony bands (not pure black).
@@ -121,7 +147,10 @@ interface Stage {
 
 /** A soft radial-falloff "contact shadow" plane — no hard rectangular
  * edge, so it reads as the building settling onto the ground rather than
- * a platform. Replaces the old opaque slab/paving masses. */
+ * a platform. Sized to the building footprint itself (no bleed beyond
+ * it) since the footprint already sits flush with the plot boundary on
+ * its two 0m-setback sides — any larger and the shadow would visibly
+ * cross onto neighbouring land there. */
 function createContactShadowTexture(): THREE.CanvasTexture {
   const size = 256;
   const canvas = document.createElement("canvas");
@@ -130,8 +159,8 @@ function createContactShadowTexture(): THREE.CanvasTexture {
   const ctx = canvas.getContext("2d")!;
   const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
   gradient.addColorStop(0, "rgba(0,0,0,0.42)");
-  gradient.addColorStop(0.55, "rgba(0,0,0,0.2)");
-  gradient.addColorStop(1, "rgba(0,0,0,0)");
+  gradient.addColorStop(0.42, "rgba(0,0,0,0.2)");
+  gradient.addColorStop(0.75, "rgba(0,0,0,0)");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
   return new THREE.CanvasTexture(canvas);
@@ -141,7 +170,7 @@ function buildContactShadow(): Stage {
   const group = new THREE.Group();
   const texture = createContactShadowTexture();
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, opacity: 0 });
-  const geometry = new THREE.PlaneGeometry(FOOTPRINT_WIDTH + 22, FOOTPRINT_DEPTH + 18);
+  const geometry = new THREE.PlaneGeometry(FOOTPRINT_WIDTH, FOOTPRINT_DEPTH);
   geometry.rotateX(-Math.PI / 2);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.y = 0.02;
@@ -177,11 +206,7 @@ function buildGroundFloor(): { stage: Stage; columns: THREE.Mesh[] } {
   for (const side of [1, -1]) {
     for (let i = 0; i < columnCountPerSide; i++) {
       const x = -(FOOTPRINT_WIDTH - 6) / 2 + spacing * i;
-      const column = growFromBase(
-        new THREE.CylinderGeometry(0.28, 0.32, columnHeight, 12),
-        materials.column,
-        0.3,
-      );
+      const column = growFromBase(new THREE.CylinderGeometry(0.28, 0.32, columnHeight, 12), materials.column, 0.3);
       column.position.x = x;
       column.position.z = side * z;
       group.add(column);
@@ -197,43 +222,45 @@ function buildGroundFloor(): { stage: Stage; columns: THREE.Mesh[] } {
   return { stage: { group, setLocal }, columns };
 }
 
-function buildFloors(): { stage: Stage; topY: number } {
+/** Podium + the 5 upper residential floors + roof, rising sequentially
+ * (podium first, then each floor, then the roof). The top floor's mass
+ * is inset per the official 3m top-floor setback. */
+function buildMassing(): Stage {
   const group = new THREE.Group();
-  const meshes: THREE.Mesh[] = [];
-  for (let i = 0; i < FLOOR_COUNT; i++) {
-    const y = GROUND_TOP + i * FLOOR_HEIGHT;
-    const mesh = growFromBase(
-      extrudedRoundedMass(FLOOR_INSET.width, FLOOR_INSET.depth, FLOOR_HEIGHT, CORNER_RADIUS),
-      materials.facade,
-      y,
-    );
+
+  const podiumMesh = growFromBase(
+    extrudedRoundedMass(FOOTPRINT_WIDTH - 2, FOOTPRINT_DEPTH - 2, PODIUM_HEIGHT, CORNER_RADIUS - 0.5),
+    materials.facade,
+    GROUND_TOP,
+  );
+  group.add(podiumMesh);
+
+  const floorMeshes: THREE.Mesh[] = [];
+  for (let i = 0; i < UPPER_FLOOR_COUNT; i++) {
+    const y = PODIUM_TOP + i * FLOOR_HEIGHT;
+    const { width, depth } = floorFootprintFor(i);
+    const mesh = growFromBase(extrudedRoundedMass(width, depth, FLOOR_HEIGHT, CORNER_RADIUS), materials.facade, y);
     group.add(mesh);
-    meshes.push(mesh);
+    floorMeshes.push(mesh);
   }
 
-  const roofGroup = new THREE.Group();
   const roofMesh = growFromBase(
     extrudedRoundedMass(FLOOR_INSET.width - 8, FLOOR_INSET.depth - 6, ROOF_HEIGHT, CORNER_RADIUS - 1),
     materials.roof,
     FLOORS_TOP,
   );
-  roofGroup.add(roofMesh);
+  group.add(roofMesh);
 
+  const riseSequence = [podiumMesh, ...floorMeshes, roofMesh];
   const setLocal = (t: number) => {
-    // Each floor rises sequentially inside the phase window; the roof
-    // structure completes the sequence right after the top floor.
-    const slot = 1 / (FLOOR_COUNT + 1);
-    meshes.forEach((mesh, i) => {
+    const slot = 1 / riseSequence.length;
+    riseSequence.forEach((mesh, i) => {
       const localStart = i * slot;
       mesh.scale.y = Math.min(1, Math.max(0, (t - localStart) / slot));
     });
-    const roofStart = FLOOR_COUNT * slot;
-    roofMesh.scale.y = Math.min(1, Math.max(0, (t - roofStart) / slot));
   };
 
-  const merged = new THREE.Group();
-  merged.add(group, roofGroup);
-  return { stage: { group: merged, setLocal }, topY: FLOORS_TOP };
+  return { group, setLocal };
 }
 
 function buildBalconyBands(): Stage {
@@ -244,8 +271,11 @@ function buildBalconyBands(): Stage {
   const bandHeight = 0.32;
   const offsetZ = FLOOR_INSET.depth / 2 + bandDepth / 2 - 0.2;
 
-  for (let i = 0; i < FLOOR_COUNT; i++) {
-    const y = GROUND_TOP + i * FLOOR_HEIGHT + 0.1;
+  // The recessed top floor reads as a set-back terrace level, not a
+  // typical balcony floor — so it's excluded here.
+  const balconyFloorCount = UPPER_FLOOR_COUNT - 1;
+  for (let i = 0; i < balconyFloorCount; i++) {
+    const y = PODIUM_TOP + i * FLOOR_HEIGHT + 0.1;
     for (const side of [1, -1]) {
       const mesh = new THREE.Mesh(baseBox(bandWidth, bandHeight, bandDepth), materials.balcony);
       mesh.position.set(0, y, side * offsetZ);
@@ -256,7 +286,7 @@ function buildBalconyBands(): Stage {
   }
 
   const setLocal = (t: number) => {
-    const slot = 1 / FLOOR_COUNT;
+    const slot = 1 / balconyFloorCount;
     meshes.forEach((mesh, i) => {
       const floorIndex = Math.floor(i / 2);
       const localStart = floorIndex * slot;
@@ -270,7 +300,7 @@ function buildBalconyBands(): Stage {
 function buildFacadeFins(): Stage {
   const group = new THREE.Group();
   const meshes: THREE.Mesh[] = [];
-  const finHeight = FLOORS_TOP - GROUND_TOP;
+  const finHeight = FLOORS_TOP - PODIUM_TOP;
   const finCountPerSide = 13;
   const spacing = FLOOR_INSET.width / (finCountPerSide + 1);
   const z = FLOOR_INSET.depth / 2 + 0.15;
@@ -278,7 +308,7 @@ function buildFacadeFins(): Stage {
   for (const side of [1, -1]) {
     for (let i = 0; i < finCountPerSide; i++) {
       const x = -FLOOR_INSET.width / 2 + spacing * (i + 1);
-      const mesh = growFromBase(baseBox(0.3, finHeight, 0.3), materials.fin, GROUND_TOP);
+      const mesh = growFromBase(baseBox(0.3, finHeight, 0.3), materials.fin, PODIUM_TOP);
       mesh.position.x = x;
       mesh.position.z = side * z;
       group.add(mesh);
@@ -298,18 +328,20 @@ function buildFacadeFins(): Stage {
 }
 
 /** Per-floor glazing panels (rather than one tall panel per facade) so the
- * lighting stage can switch interior warmth on floor-by-floor. */
+ * lighting stage can switch interior warmth on floor-by-floor. Each
+ * panel is sized to its own floor's footprint, so the recessed top floor
+ * gets a correspondingly recessed glazing line. */
 function buildGlazing(): { stage: Stage; floorPanelMaterials: THREE.MeshPhysicalMaterial[][] } {
   const group = new THREE.Group();
   const meshes: THREE.Mesh[] = [];
   const floorPanelMaterials: THREE.MeshPhysicalMaterial[][] = [];
   const panelHeight = FLOOR_HEIGHT - 0.4;
-  const width = FLOOR_INSET.width - 2;
   const depth = 0.15;
-  const zOffset = FLOOR_INSET.depth / 2 - 0.05;
 
-  for (let floor = 0; floor < FLOOR_COUNT; floor++) {
-    const y = GROUND_TOP + floor * FLOOR_HEIGHT + 0.2;
+  for (let floor = 0; floor < UPPER_FLOOR_COUNT; floor++) {
+    const y = PODIUM_TOP + floor * FLOOR_HEIGHT + 0.2;
+    const { width, depth: floorDepth } = floorFootprintFor(floor);
+    const zOffset = floorDepth / 2 - 0.05;
     const sideMats: THREE.MeshPhysicalMaterial[] = [];
     for (const side of [1, -1]) {
       const material = new THREE.MeshPhysicalMaterial({
@@ -323,7 +355,7 @@ function buildGlazing(): { stage: Stage; floorPanelMaterials: THREE.MeshPhysical
         emissive: 0xffc98a,
         emissiveIntensity: 0,
       });
-      const mesh = growFromBase(baseBox(width, panelHeight, depth), material, y);
+      const mesh = growFromBase(baseBox(width - 2, panelHeight, depth), material, y);
       mesh.position.z = side * zOffset;
       group.add(mesh);
       meshes.push(mesh);
@@ -343,10 +375,7 @@ function buildGlazing(): { stage: Stage; floorPanelMaterials: THREE.MeshPhysical
   return { stage: { group, setLocal }, floorPanelMaterials };
 }
 
-function buildLighting(
-  floorPanelMaterials: THREE.MeshPhysicalMaterial[][],
-  columns: THREE.Mesh[],
-): Stage {
+function buildLighting(floorPanelMaterials: THREE.MeshPhysicalMaterial[][], columns: THREE.Mesh[]): Stage {
   const group = new THREE.Group();
   const lights: THREE.PointLight[] = [];
   const coveMeshes: THREE.Mesh[] = [];
@@ -380,7 +409,7 @@ function buildLighting(
     // Warm interior lights switch on floor-by-floor across the first 70%
     // of this phase...
     const floorWindow = 0.7;
-    const floorSlot = floorWindow / FLOOR_COUNT;
+    const floorSlot = floorWindow / UPPER_FLOOR_COUNT;
     floorPanelMaterials.forEach((sideMats, i) => {
       const localStart = i * floorSlot;
       const localT = Math.min(1, Math.max(0, (t - localStart) / floorSlot));
@@ -405,41 +434,46 @@ function buildLighting(
   return { group, setLocal };
 }
 
+/** Candidate landscaping positions (hedges around the perimeter, a few
+ * trees further out), each kept only if it verifiably falls inside the
+ * true plot boundary — never a naive radius around the building that
+ * could spill onto neighbouring land. */
 function buildLandscaping(): Stage {
   const group = new THREE.Group();
 
   const hedges: THREE.Mesh[] = [];
-  const hedgeRadiusX = FOOTPRINT_WIDTH / 2 + 8;
-  const hedgeRadiusZ = FOOTPRINT_DEPTH / 2 + 8;
-  const hedgeCount = 18;
-  for (let i = 0; i < hedgeCount; i++) {
-    const angle = (i / hedgeCount) * Math.PI * 2;
-    const x = Math.cos(angle) * hedgeRadiusX;
-    const z = Math.sin(angle) * hedgeRadiusZ;
-    const mesh = growFromBase(baseBox(2.4, 0.7, 0.7), materials.hedge, 0);
-    mesh.position.set(x, 0, z);
+  const hedgeRadiusX = FOOTPRINT_WIDTH / 2 + 6;
+  const hedgeRadiusZ = FOOTPRINT_DEPTH / 2 + 6;
+  const hedgeCandidateCount = 24;
+  for (let i = 0; i < hedgeCandidateCount; i++) {
+    const angle = (i / hedgeCandidateCount) * Math.PI * 2;
+    const spot: Local2 = [Math.cos(angle) * hedgeRadiusX, Math.sin(angle) * hedgeRadiusZ];
+    if (!isInsidePlotRelativeToFootprint(spot)) continue;
+    const mesh = growFromBase(baseBox(2.2, 0.7, 0.7), materials.hedge, 0);
+    mesh.position.set(spot[0], 0, spot[1]);
     mesh.rotation.y = angle;
     group.add(mesh);
     hedges.push(mesh);
   }
 
   const trees: THREE.Group[] = [];
-  const treeSpots: [number, number][] = [
-    [FOOTPRINT_WIDTH / 2 + 14, FOOTPRINT_DEPTH / 2 + 10],
-    [-(FOOTPRINT_WIDTH / 2 + 14), FOOTPRINT_DEPTH / 2 + 10],
-    [FOOTPRINT_WIDTH / 2 + 14, -(FOOTPRINT_DEPTH / 2 + 10)],
-    [-(FOOTPRINT_WIDTH / 2 + 14), -(FOOTPRINT_DEPTH / 2 + 10)],
-    [0, FOOTPRINT_DEPTH / 2 + 16],
-    [0, -(FOOTPRINT_DEPTH / 2 + 16)],
+  const treeCandidateSpots: Local2[] = [
+    [FOOTPRINT_WIDTH / 2 + 9, FOOTPRINT_DEPTH / 2 + 7],
+    [-(FOOTPRINT_WIDTH / 2 + 9), FOOTPRINT_DEPTH / 2 + 7],
+    [FOOTPRINT_WIDTH / 2 + 9, -(FOOTPRINT_DEPTH / 2 + 7)],
+    [-(FOOTPRINT_WIDTH / 2 + 9), -(FOOTPRINT_DEPTH / 2 + 7)],
+    [0, FOOTPRINT_DEPTH / 2 + 10],
+    [0, -(FOOTPRINT_DEPTH / 2 + 10)],
   ];
-  for (const [x, z] of treeSpots) {
+  for (const spot of treeCandidateSpots) {
+    if (!isInsidePlotRelativeToFootprint(spot)) continue;
     const tree = new THREE.Group();
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 2.2, 6), materials.treeTrunk);
     trunk.position.y = 1.1;
     const canopy = new THREE.Mesh(new THREE.ConeGeometry(1.4, 3, 8), materials.treeCanopy);
     canopy.position.y = 3.4;
     tree.add(trunk, canopy);
-    tree.position.set(x, 0, z);
+    tree.position.set(spot[0], 0, spot[1]);
     tree.scale.setScalar(0);
     group.add(tree);
     trees.push(tree);
@@ -447,11 +481,11 @@ function buildLandscaping(): Stage {
 
   const setLocal = (t: number) => {
     hedges.forEach((mesh, i) => {
-      const localStart = (i / hedges.length) * 0.5;
+      const localStart = (i / Math.max(1, hedges.length)) * 0.5;
       mesh.scale.y = Math.min(1, Math.max(0, (t - localStart) / 0.5));
     });
     trees.forEach((tree, i) => {
-      const localStart = 0.3 + (i / trees.length) * 0.5;
+      const localStart = 0.3 + (i / Math.max(1, trees.length)) * 0.5;
       const s = Math.min(1, Math.max(0, (t - localStart) / 0.5));
       tree.scale.setScalar(s);
     });
@@ -473,7 +507,7 @@ export function createProceduralBuilding(): BuildingModel {
 
   const contactShadow = buildContactShadow();
   const { stage: ground, columns } = buildGroundFloor();
-  const { stage: floors } = buildFloors();
+  const massing = buildMassing();
   const balconies = buildBalconyBands();
   const fins = buildFacadeFins();
   const { stage: glazing, floorPanelMaterials } = buildGlazing();
@@ -483,7 +517,7 @@ export function createProceduralBuilding(): BuildingModel {
   root.add(
     contactShadow.group,
     ground.group,
-    floors.group,
+    massing.group,
     balconies.group,
     fins.group,
     glazing.group,
@@ -494,7 +528,7 @@ export function createProceduralBuilding(): BuildingModel {
   function setProgress(progress: number) {
     contactShadow.setLocal(windowProgress(progress, SCENE_WINDOWS.slab.window));
     ground.setLocal(windowProgress(progress, SCENE_WINDOWS.groundFloor.window));
-    floors.setLocal(windowProgress(progress, SCENE_WINDOWS.floorsRising.window));
+    massing.setLocal(windowProgress(progress, SCENE_WINDOWS.floorsRising.window));
     balconies.setLocal(windowProgress(progress, SCENE_WINDOWS.balconyBands.window));
     fins.setLocal(windowProgress(progress, SCENE_WINDOWS.facadeFins.window));
     glazing.setLocal(windowProgress(progress, SCENE_WINDOWS.glazing.window));

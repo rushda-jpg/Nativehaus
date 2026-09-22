@@ -1,11 +1,20 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { CAMERA_KEYFRAMES, NATIVE_HAUS_SITE, SITE_DIM_MASK_RINGS, SITE_PLOT_RING } from "../config/geo";
+import {
+  BUILDING_ANCHOR,
+  BUILDING_FOOTPRINT_RING,
+  CAMERA_KEYFRAMES,
+  NATIVE_HAUS_SITE,
+  SETBACK_ENVELOPE_RING,
+  SITE_DIM_MASK_RINGS,
+  SITE_PLOT_RING,
+} from "../config/geo";
+import { PLOT_ROTATION_DEG } from "../config/plotGeometry";
 import { SCENE_WINDOWS, windowProgress } from "../config/scenes";
 import { NATIVE_RED } from "../config/brand";
 import { interpolateCamera } from "../lib/math";
-import { isCalibrateMode } from "../lib/queryFlags";
+import { isCalibrateMode, isDebugMode } from "../lib/queryFlags";
 import { BuildingLayer } from "../three/BuildingLayer";
 import { createProceduralBuilding } from "../three/buildingBuilder";
 
@@ -19,6 +28,13 @@ const SITE_DIM_MASK_LAYER_ID = "native-haus-dim-mask-fill";
 const SITE_PULSE_SOURCE_ID = "native-haus-plot-pulse";
 const SITE_PULSE_LAYER_ID = "native-haus-plot-pulse-line";
 const BUILDING_LAYER_ID = "native-haus-building";
+
+const DEBUG_ANCHOR_SOURCE_ID = "native-haus-debug-anchor";
+const DEBUG_ANCHOR_LAYER_ID = "native-haus-debug-anchor-point";
+const DEBUG_ENVELOPE_SOURCE_ID = "native-haus-debug-envelope";
+const DEBUG_ENVELOPE_LAYER_ID = "native-haus-debug-envelope-line";
+const DEBUG_FOOTPRINT_SOURCE_ID = "native-haus-debug-footprint";
+const DEBUG_FOOTPRINT_LAYER_ID = "native-haus-debug-footprint-line";
 
 const PULSE_TRANSPARENT = "rgba(193,39,45,0)";
 
@@ -65,6 +81,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
   const readyRef = useRef(false);
   const [tokenMissing] = useState(() => !MAPBOX_TOKEN);
   const calibrate = useMemo(() => isCalibrateMode(), []);
+  const debug = useMemo(() => isDebugMode(), []);
   const [clicked, setClicked] = useState<ClickedCoord | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -81,29 +98,35 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
         bearing: camera.bearing,
       });
 
-      const dimT = windowProgress(progress, SCENE_WINDOWS.siteApproach.window);
-      if (map.getLayer(SITE_DIM_MASK_LAYER_ID)) {
-        map.setPaintProperty(SITE_DIM_MASK_LAYER_ID, "fill-opacity", dimT * 0.38);
-      }
+      // In debug mode the plot outline/fill stay at their verification
+      // baseline (set once on load) rather than following the scroll
+      // reveal, and the surroundings are never dimmed, so the overlays
+      // stay legible however far the page is scrolled.
+      if (!debug) {
+        const dimT = windowProgress(progress, SCENE_WINDOWS.siteApproach.window);
+        if (map.getLayer(SITE_DIM_MASK_LAYER_ID)) {
+          map.setPaintProperty(SITE_DIM_MASK_LAYER_ID, "fill-opacity", dimT * 0.38);
+        }
 
-      const drawT = windowProgress(progress, SCENE_WINDOWS.plotBoundary.window);
-      const outlineT = Math.min(1, drawT / 0.6);
-      const pulseT = Math.max(0, Math.min(1, (drawT - 0.6) / 0.4));
+        const drawT = windowProgress(progress, SCENE_WINDOWS.plotBoundary.window);
+        const outlineT = Math.min(1, drawT / 0.6);
+        const pulseT = Math.max(0, Math.min(1, (drawT - 0.6) / 0.4));
 
-      if (map.getLayer(SITE_LINE_LAYER_ID)) {
-        map.setPaintProperty(SITE_LINE_LAYER_ID, "line-opacity", outlineT);
-        map.setPaintProperty(SITE_LINE_LAYER_ID, "line-width", 1.5 + outlineT * 1.5);
-      }
-      if (map.getLayer(SITE_FILL_LAYER_ID)) {
-        map.setPaintProperty(SITE_FILL_LAYER_ID, "fill-opacity", outlineT * 0.08);
-      }
-      if (map.getLayer(SITE_PULSE_LAYER_ID)) {
-        if (pulseT <= 0 || pulseT >= 1) {
-          map.setPaintProperty(SITE_PULSE_LAYER_ID, "line-opacity", 0);
-        } else {
-          map.setPaintProperty(SITE_PULSE_LAYER_ID, "line-opacity", 1);
-          // line-gradient's typed expression shape isn't worth fighting here.
-          map.setPaintProperty(SITE_PULSE_LAYER_ID, "line-gradient", pulseGradientExpression(pulseT) as never);
+        if (map.getLayer(SITE_LINE_LAYER_ID)) {
+          map.setPaintProperty(SITE_LINE_LAYER_ID, "line-opacity", outlineT);
+          map.setPaintProperty(SITE_LINE_LAYER_ID, "line-width", 1.5 + outlineT * 1.5);
+        }
+        if (map.getLayer(SITE_FILL_LAYER_ID)) {
+          map.setPaintProperty(SITE_FILL_LAYER_ID, "fill-opacity", outlineT * 0.08);
+        }
+        if (map.getLayer(SITE_PULSE_LAYER_ID)) {
+          if (pulseT <= 0 || pulseT >= 1) {
+            map.setPaintProperty(SITE_PULSE_LAYER_ID, "line-opacity", 0);
+          } else {
+            map.setPaintProperty(SITE_PULSE_LAYER_ID, "line-opacity", 1);
+            // line-gradient's typed expression shape isn't worth fighting here.
+            map.setPaintProperty(SITE_PULSE_LAYER_ID, "line-gradient", pulseGradientExpression(pulseT) as never);
+          }
         }
       }
 
@@ -203,7 +226,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
         id: SITE_FILL_LAYER_ID,
         type: "fill",
         source: SITE_SOURCE_ID,
-        paint: { "fill-color": "#d7b98a", "fill-opacity": 0 },
+        paint: { "fill-color": "#d7b98a", "fill-opacity": debug ? 0.06 : 0 },
       });
 
       map.addLayer({
@@ -212,8 +235,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
         source: SITE_SOURCE_ID,
         paint: {
           "line-color": "#f4e3bd",
-          "line-width": 1.5,
-          "line-opacity": 0,
+          "line-width": debug ? 2 : 1.5,
+          "line-opacity": debug ? 1 : 0,
         },
         layout: { "line-join": "round", "line-cap": "round" },
       });
@@ -241,8 +264,59 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
         layout: { "line-join": "round", "line-cap": "round" },
       });
 
+      if (debug) {
+        // ?debug=1 only — verification overlays, never shown to normal
+        // visitors. Anchor dot at the confirmed geographic anchor, the
+        // road-setback envelope, and the fitted building footprint.
+        map.addSource(DEBUG_ANCHOR_SOURCE_ID, {
+          type: "geojson",
+          data: { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: NATIVE_HAUS_SITE } },
+        });
+        map.addLayer({
+          id: DEBUG_ANCHOR_LAYER_ID,
+          type: "circle",
+          source: DEBUG_ANCHOR_SOURCE_ID,
+          paint: {
+            "circle-radius": 6,
+            "circle-color": NATIVE_RED,
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#ffffff",
+          },
+        });
+
+        map.addSource(DEBUG_ENVELOPE_SOURCE_ID, {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: {},
+            geometry: { type: "Polygon", coordinates: [SETBACK_ENVELOPE_RING] },
+          },
+        });
+        map.addLayer({
+          id: DEBUG_ENVELOPE_LAYER_ID,
+          type: "line",
+          source: DEBUG_ENVELOPE_SOURCE_ID,
+          paint: { "line-color": "#38bdf8", "line-width": 1.5, "line-dasharray": [2, 2] },
+        });
+
+        map.addSource(DEBUG_FOOTPRINT_SOURCE_ID, {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: {},
+            geometry: { type: "Polygon", coordinates: [BUILDING_FOOTPRINT_RING] },
+          },
+        });
+        map.addLayer({
+          id: DEBUG_FOOTPRINT_LAYER_ID,
+          type: "line",
+          source: DEBUG_FOOTPRINT_SOURCE_ID,
+          paint: { "line-color": "#a3e635", "line-width": 2 },
+        });
+      }
+
       const buildingModel = createProceduralBuilding();
-      const buildingLayer = new BuildingLayer(BUILDING_LAYER_ID, NATIVE_HAUS_SITE, buildingModel);
+      const buildingLayer = new BuildingLayer(BUILDING_LAYER_ID, BUILDING_ANCHOR, buildingModel, PLOT_ROTATION_DEG);
       buildingLayerRef.current = buildingLayer;
       map.addLayer(buildingLayer as unknown as mapboxgl.CustomLayerInterface);
 
@@ -272,7 +346,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle>(function MapCanvas(_, ref) 
       map.remove();
       mapRef.current = null;
     };
-  }, [calibrate]);
+  }, [calibrate, debug]);
 
   if (tokenMissing) {
     return (
