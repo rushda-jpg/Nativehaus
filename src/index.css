@@ -21,14 +21,18 @@ body {
   overflow-x: hidden;
 }
 
-.scroll-spacer {
+/* The cinematic sequence's own pin: sticky (not fixed), so .stage
+   naturally releases once this wrapper's height is scrolled past,
+   revealing the Residence Explorer section that follows it in normal
+   document flow — no manual show/hide logic needed. */
+.cinematic-sticky-wrapper {
+  position: relative;
   width: 100vw;
-  pointer-events: none;
 }
 
 .stage {
-  position: fixed;
-  inset: 0;
+  position: sticky;
+  top: 0;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
@@ -905,5 +909,132 @@ body {
   .unit-detail-panel__sheet {
     width: 100%;
     border-left: none;
+  }
+}
+
+/* ==========================================================================
+   Spatial Residence Explorer (ResidenceExplorer3D) — pinned, scroll-
+   scrubbed 3D sequence: building stack -> Level 02 -> Unit 214 -> plan.
+   Same dark-charcoal/warm-ivory/restrained-red language as the rest of
+   the site; the plan itself stays the visual focus, so the DOM chrome
+   here is deliberately minimal (no cards, no heavy borders).
+   ========================================================================== */
+
+.residence3d-spacer {
+  position: relative;
+  width: 100vw;
+  background: #0a0b0d;
+}
+
+.residence3d-pin {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #0a0b0d;
+}
+
+.residence3d-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.residence3d-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.residence3d-levels {
+  position: absolute;
+  top: 50%;
+  right: clamp(1.2rem, 4vw, 3.5rem);
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.1rem;
+  z-index: 2;
+}
+
+.residence3d-levels__item {
+  background: none;
+  border: none;
+  color: #6b6659;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  padding: 0.55rem 0.4rem;
+  cursor: pointer;
+  text-align: right;
+  transition: color 0.25s ease, letter-spacing 0.25s ease;
+}
+
+.residence3d-levels__item--inert {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.residence3d-levels__item:not(:disabled):hover {
+  color: #ece7dc;
+}
+
+.residence3d-levels__item--active {
+  color: var(--native-red);
+  letter-spacing: 0.22em;
+}
+
+.residence3d-detail {
+  position: absolute;
+  left: clamp(1.2rem, 5vw, 4rem);
+  bottom: clamp(2rem, 8vh, 5rem);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  opacity: 0;
+  pointer-events: none;
+  max-width: 22rem;
+  transition: opacity 0.2s ease;
+}
+
+.residence3d-detail__type {
+  font-size: clamp(1.5rem, 3vw, 2.4rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ece7dc;
+}
+
+.residence3d-detail__area {
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.residence3d-detail__meta {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: #6b6659;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .residence3d-levels {
+    right: 1rem;
+    gap: 0;
+  }
+
+  .residence3d-levels__item {
+    font-size: 0.68rem;
+    padding: 0.4rem 0.3rem;
+  }
+
+  .residence3d-detail {
+    left: 1rem;
+    bottom: 1.5rem;
+    max-width: calc(100vw - 2rem);
   }
 }

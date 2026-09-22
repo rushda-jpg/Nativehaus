@@ -76,7 +76,7 @@ export const HeroReveal = forwardRef<HeroRevealHandle, HeroRevealProps>(function
       </span>
       {onExplore && (
         <button ref={ctaRef} type="button" className="hero-reveal__cta" onClick={onExplore}>
-          EXPLORE NATIVE HAUS
+          EXPLORE RESIDENCES
         </button>
       )}
     </div>

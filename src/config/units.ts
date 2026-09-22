@@ -82,15 +82,15 @@ export interface Unit {
   specialAttributes?: string[];
 }
 
-// Exactly one real sample this round — see file header. Placed on Floor
-// 2 (a "typical" floor, floors 2-6) since that's the repeated stack the
-// supplied schedule describes; the polygon is the plate's first bay
+// Exactly one real sample this round — see file header. Floor 2, unit
+// 214, Studio Type A — the specific level/unit given for the Level 02 ->
+// Unit 214 cinematic prototype; the polygon is the plate's first bay
 // (see typical-floor-placeholder.svg).
 export const UNITS: Unit[] = [
   {
-    id: "sample-studio-a",
+    id: "unit-214",
     floor: "2",
-    unitNumber: null,
+    unitNumber: "214",
     unitTypeId: "studio-a",
     floorPlanAsset: "/assets/unit-plans/studio-a-schematic.svg",
     floorPlatePolygon: "60,65 245,65 245,460 60,460",

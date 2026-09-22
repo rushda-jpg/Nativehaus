@@ -6,6 +6,19 @@ import { isCalibrateMode } from "./queryFlags";
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Module-level singleton so components outside the hook (level/unit
+// click handlers that need to smooth-scroll the page to a timeline
+// position) can reach the same Lenis instance without prop-drilling or
+// a context provider. Set on mount, cleared on unmount.
+let activeLenis: Lenis | null = null;
+
+/** The active Lenis instance, or null in calibration mode / before
+ * useLenis() has mounted. Used for programmatic `scrollTo` navigation
+ * (e.g. clicking a level or unit smooth-scrolls rather than jumping). */
+export function getLenis(): Lenis | null {
+  return activeLenis;
+}
+
 /**
  * Wires Lenis smooth-scroll into GSAP's ticker so ScrollTrigger stays in
  * sync with Lenis's (not the browser's) scroll position. Standard
@@ -25,6 +38,7 @@ export function useLenis() {
       wheelMultiplier: 1,
       touchMultiplier: 1.2,
     });
+    activeLenis = lenis;
 
     lenis.on("scroll", ScrollTrigger.update);
 
@@ -37,6 +51,7 @@ export function useLenis() {
     return () => {
       gsap.ticker.remove(onTick);
       lenis.destroy();
+      activeLenis = null;
     };
   }, []);
 }
