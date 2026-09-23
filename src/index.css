@@ -1389,3 +1389,357 @@ body {
     width: min(84vw, 420px);
   }
 }
+
+/* ============================================================
+   Residence Explorer — flat, image-backed hover/click interaction.
+   The real building photograph and the floor plate / unit plan
+   artwork never move or separate; only transparent SVG polygons
+   layered on top of them respond to the pointer, and the three
+   views (building / floor plate / unit plan) crossfade in place.
+   ============================================================ */
+
+.residence-explorer {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-height: 640px;
+  overflow: hidden;
+  background: #06050a;
+}
+
+.rex-building,
+.rex-plate {
+  position: absolute;
+  inset: 0;
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s ease,
+    filter 0.7s ease;
+}
+
+.rex-building__image,
+.rex-plate__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.rex-plate__image {
+  object-fit: contain;
+  background: #0a0910;
+}
+
+.rex-building__zones,
+.rex-plate__zones {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Hit zones are invisible under normal conditions — only a hover state
+   reveals a subtle warm highlight. No visible outline/fill at rest. */
+.rex-zone {
+  fill: transparent;
+  stroke: none;
+  pointer-events: all;
+}
+
+.rex-zone--active {
+  cursor: pointer;
+}
+
+.rex-zone--inert {
+  cursor: default;
+}
+
+.rex-zone--hover {
+  fill: rgba(193, 39, 45, 0.14);
+  stroke: rgba(236, 231, 220, 0.35);
+  stroke-width: 1;
+  transition:
+    fill 0.25s ease,
+    stroke 0.25s ease;
+}
+
+.rex-zone--active.rex-zone--hover {
+  fill: rgba(193, 39, 45, 0.22);
+  stroke: rgba(193, 39, 45, 0.65);
+}
+
+.rex-unit-zone {
+  fill: transparent;
+  stroke: none;
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.rex-unit-zone--hover {
+  fill: rgba(193, 39, 45, 0.24);
+  stroke: rgba(193, 39, 45, 0.7);
+  stroke-width: 2;
+  transition:
+    fill 0.2s ease,
+    stroke 0.2s ease;
+}
+
+/* Floor plate view is hidden/receded while on the building view, and
+   recedes again (rather than reappearing) once the unit plan takes
+   over as the primary visual. */
+.residence-explorer[data-view="building"] .rex-plate {
+  opacity: 0;
+  transform: scale(0.97);
+  pointer-events: none;
+}
+
+.residence-explorer[data-view="floorplate"] .rex-plate,
+.residence-explorer[data-view="unitplan"] .rex-plate {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.residence-explorer[data-view="unitplan"] .rex-plate {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.residence-explorer[data-view="building"] .rex-building {
+  opacity: 1;
+  transform: scale(1);
+  filter: brightness(1) saturate(1);
+  pointer-events: auto;
+}
+
+.residence-explorer[data-view="floorplate"] .rex-building,
+.residence-explorer[data-view="unitplan"] .rex-building {
+  opacity: 0;
+  transform: scale(1.05);
+  filter: brightness(0.45) saturate(0.85);
+  pointer-events: none;
+}
+
+/* Editorial floor-info panel — restrained, not a generic card. */
+.rex-floor-panel {
+  position: absolute;
+  top: 50%;
+  right: 6vw;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: min(280px, 30vw);
+  padding: 1.6rem 1.7rem;
+  background: rgba(6, 5, 10, 0.55);
+  backdrop-filter: blur(6px);
+  border-left: 1px solid rgba(236, 231, 220, 0.18);
+  pointer-events: none;
+  animation: rexFadeIn 0.35s ease both;
+}
+
+@keyframes rexFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+/* For elements that aren't vertically centered via translateY(-50%) at
+   rest (unlike .rex-floor-panel) — a plain fade/slide, no permanent
+   vertical offset baked into the "to" keyframe. */
+@keyframes rexFadeInFlat {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.rex-floor-panel__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  color: #ece7dc;
+  text-transform: uppercase;
+}
+
+.rex-floor-panel__accent {
+  display: inline-block;
+  width: 16px;
+  height: 1px;
+  background: var(--native-red);
+}
+
+.rex-floor-panel__title {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: #ece7dc;
+}
+
+.rex-floor-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.86rem;
+  color: #b9b3a4;
+}
+
+.rex-floor-panel__cta {
+  pointer-events: auto;
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #ece7dc;
+  font: inherit;
+  font-size: 0.76rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-bottom: 1px solid var(--native-red);
+  padding-bottom: 2px;
+  transition: color 0.2s ease;
+}
+
+.rex-floor-panel__cta:hover {
+  color: var(--native-red);
+}
+
+.rex-floor-panel__soon {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: #6b6659;
+  text-transform: uppercase;
+}
+
+.rex-unit-chip {
+  position: absolute;
+  left: 6vw;
+  bottom: 8vh;
+  padding: 0.75rem 1.1rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  color: #ece7dc;
+  background: rgba(6, 5, 10, 0.6);
+  backdrop-filter: blur(6px);
+  border-left: 2px solid var(--native-red);
+  text-transform: uppercase;
+  pointer-events: none;
+  animation: rexFadeInFlat 0.2s ease both;
+}
+
+.rex-back {
+  position: absolute;
+  top: 2.2rem;
+  left: 2.2rem;
+  padding: 0.55rem 0;
+  border: none;
+  background: none;
+  color: #b9b3a4;
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  z-index: 3;
+  transition: color 0.2s ease;
+}
+
+.rex-back:hover {
+  color: #ece7dc;
+}
+
+.residence-explorer[data-view="building"] .rex-back {
+  display: none;
+}
+
+/* Unit plan view — the official plan becomes the primary full-screen
+   visual, never distorted (object-fit: contain, aspect ratio intact). */
+.rex-unitplan {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: #06050a;
+  animation: rexFadeInFlat 0.45s ease both;
+}
+
+.rex-unitplan__stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+.rex-unitplan__image {
+  max-width: 78%;
+  max-height: 78%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: transform 0.05s linear;
+  will-change: transform;
+}
+
+.rex-unitplan__info {
+  position: absolute;
+  left: 6vw;
+  bottom: 8vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.rex-unitplan__info-type {
+  font-size: 1.2rem;
+  letter-spacing: 0.06em;
+  color: #ece7dc;
+  text-transform: uppercase;
+}
+
+.rex-unitplan__info-meta {
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .rex-floor-panel {
+    right: 4vw;
+    width: min(240px, 62vw);
+    padding: 1.2rem 1.3rem;
+  }
+
+  .rex-unit-chip,
+  .rex-unitplan__info {
+    left: 4vw;
+  }
+
+  .rex-unitplan__image {
+    max-width: 92%;
+    max-height: 68%;
+  }
+}
