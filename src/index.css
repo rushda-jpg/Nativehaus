@@ -1,5 +1,10 @@
 :root {
   --native-red: #c1272d;
+  /* Warm champagne/bronze illumination — the Residence Explorer's hover
+     highlight. Native red stays reserved for small restrained accents
+     only (an eyebrow rule, a border stripe), never the highlight color
+     itself — see the Residence Explorer's visual standard. */
+  --champagne: #d9b877;
 }
 
 * {
@@ -1433,6 +1438,23 @@ body {
   background: #0a0910;
 }
 
+/* "The remaining building may dim very slightly" / "subtly reduce
+   emphasis on surrounding units" — a soft brightness dip on the whole
+   underlying image while a floor/unit is hovered, never an opaque
+   overlay covering anything. */
+.rex-building__image,
+.rex-plate__image {
+  transition: filter 0.3s ease;
+}
+
+.rex-building[data-dimmed="true"] .rex-building__image {
+  filter: brightness(0.92);
+}
+
+.rex-plate[data-dimmed="true"] .rex-plate__image {
+  filter: brightness(0.88);
+}
+
 .rex-building__zones,
 .rex-plate__zones {
   position: absolute;
@@ -1442,10 +1464,10 @@ body {
 }
 
 /* Hit zones are invisible under normal conditions — only a hover state
-   reveals a subtle warm highlight. No visible outline/fill at rest. */
+   reveals a subtle warm illumination. No visible outline/fill at rest,
+   no stroke line ever (a thin outline reads as UI, not light). */
 .rex-zone {
   fill: transparent;
-  stroke: none;
   pointer-events: all;
 }
 
@@ -1457,34 +1479,31 @@ body {
   cursor: default;
 }
 
+/* mix-blend-mode: screen makes the fill read as warm light landing on
+   the facade rather than a flat coat of paint over it — champagne/
+   amber only, never red (red is reserved for small accents elsewhere). */
 .rex-zone--hover {
-  fill: rgba(193, 39, 45, 0.14);
-  stroke: rgba(236, 231, 220, 0.35);
-  stroke-width: 1;
-  transition:
-    fill 0.25s ease,
-    stroke 0.25s ease;
+  fill: var(--champagne);
+  fill-opacity: 0.16;
+  mix-blend-mode: screen;
+  transition: fill-opacity 0.3s ease;
 }
 
 .rex-zone--active.rex-zone--hover {
-  fill: rgba(193, 39, 45, 0.22);
-  stroke: rgba(193, 39, 45, 0.65);
+  fill-opacity: 0.26;
 }
 
 .rex-unit-zone {
   fill: transparent;
-  stroke: none;
   pointer-events: all;
   cursor: pointer;
 }
 
 .rex-unit-zone--hover {
-  fill: rgba(193, 39, 45, 0.24);
-  stroke: rgba(193, 39, 45, 0.7);
-  stroke-width: 2;
-  transition:
-    fill 0.2s ease,
-    stroke 0.2s ease;
+  fill: var(--champagne);
+  fill-opacity: 0.3;
+  mix-blend-mode: screen;
+  transition: fill-opacity 0.25s ease;
 }
 
 /* Floor plate view is hidden/receded while on the building view, and
@@ -1582,7 +1601,7 @@ body {
   background: var(--native-red);
 }
 
-.rex-floor-panel__title {
+.rex-floor-panel__count {
   font-size: 1.4rem;
   font-weight: 500;
   color: #ece7dc;
@@ -1633,16 +1652,58 @@ body {
   position: absolute;
   left: 6vw;
   bottom: 8vh;
-  padding: 0.75rem 1.1rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.9rem 1.2rem;
   color: #ece7dc;
   background: rgba(6, 5, 10, 0.6);
   backdrop-filter: blur(6px);
   border-left: 2px solid var(--native-red);
-  text-transform: uppercase;
   pointer-events: none;
   animation: rexFadeInFlat 0.2s ease both;
+}
+
+.rex-unit-chip__number {
+  font-size: 1.3rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.rex-unit-chip__type {
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  color: #d9b877;
+  text-transform: uppercase;
+}
+
+.rex-unit-chip__area {
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.rex-unit-chip__cta {
+  pointer-events: auto;
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #ece7dc;
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-bottom: 1px solid var(--native-red);
+  padding-bottom: 2px;
+  transition: color 0.2s ease;
+}
+
+.rex-unit-chip__cta:hover {
+  color: var(--native-red);
 }
 
 .rex-back {
@@ -1677,7 +1738,7 @@ body {
   inset: 0;
   z-index: 4;
   background: #06050a;
-  animation: rexFadeInFlat 0.45s ease both;
+  animation: rexFadeInFlat 0.6s ease both;
 }
 
 .rex-unitplan__stage {
@@ -1723,6 +1784,13 @@ body {
   font-size: 0.76rem;
   letter-spacing: 0.12em;
   color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.rex-unitplan__info-area {
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  color: #d9b877;
   text-transform: uppercase;
 }
 

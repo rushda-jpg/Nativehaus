@@ -1,43 +1,66 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { FLOORS, FLOOR_PLATE_ASSETS, FLOOR_PLATE_VIEWBOX, floorById, type FloorId } from "../config/floors";
 import { BEDROOM_CATEGORIES, UNITS, unitTypeById } from "../config/units";
 import { CONSTRUCTION_VIDEO_FINAL_FRAME } from "../config/video";
 import { usePanZoom } from "../hooks/usePanZoom";
 
-// Flat, image-backed hover/click explorer — replaces the rejected
-// floating-floor-stack FloorExplorer. The real building photograph and
-// the floor plate/unit plan artwork never move or separate; only
-// transparent SVG polygons layered on top of them respond to the
-// pointer, and views crossfade in place (see index.css's
-// `.residence-explorer[data-view=...]` rules).
+// Flat, image-backed hover/click explorer per the locked interaction
+// spec: BUILDING -> hover/click floor -> FLOOR PLATE -> hover/click unit
+// -> UNIT PLAN. The real building photograph and the floor
+// plate/unit-plan artwork never move; only transparent SVG polygons
+// layered on top of them respond to the pointer, and views crossfade in
+// place (see index.css's `.residence-explorer[data-view=...]` rules).
+// No WebGL, no Three.js, no Spline — React + SVG + CSS only.
 //
-// This is a PROTOTYPE of one full path only (Level 02 -> Unit 214), per
-// the brief. The other six floor zones are present (so the building
-// reads as fully hoverable) but only Level 02 is clickable; the other
-// zones show a "coming soon" cue instead of opening a plate that
-// doesn't exist yet — the same honesty pattern used for Ground/Floor 1
-// elsewhere in this codebase (see floors.ts's FLOOR_PLATE_ASSETS).
+// This is a PROTOTYPE of one full path only (Level 02 -> Unit 214). The
+// other five interactive levels (06-01) are present and hoverable (the
+// building must read as fully explorable) but only Level 02 is
+// clickable; the rest show a "coming soon" cue instead of opening a
+// plate that doesn't exist yet. Ground is shown but not interactive.
 
 const PROTOTYPE_FLOOR_ID: FloorId = "2";
+// The one figure supplied for the Level 02 prototype panel — not derived
+// or estimated (units.ts doesn't carry a per-floor residence count yet).
+const PROTOTYPE_FLOOR_RESIDENCE_COUNT = 28;
 
-// Hit-zone polygons for the seven residential floor bands, in the real
+// Hit-zone polygons for the six interactive floor bands, in the real
 // hero photograph's own pixel space (1290x714 — see
-// native-haus-build-reveal-final.jpg). Boundaries were measured from the
-// image itself (a vertical brightness scan along the facade locates each
-// dark balcony datum line) rather than guessed; the horizontal extent is
-// an approximate front-facade band, since this is a 3D oblique render,
-// not a flat elevation — acceptable for a prototype whose only
-// functionally-precise zone is Level 02.
+// native-haus-build-reveal-final.jpg). Each floor has TWO polygons — a
+// front-facade band and a side-facade band — so the hover highlight
+// wraps around the building's corner rather than covering one face
+// only. All boundaries were measured from the image itself, not
+// guessed: the vertical (floor-height) boundaries come from a
+// brightness scan down the front facade that locates each dark balcony
+// datum line; the corner x (~960px) comes from a color/warmth scan (the
+// warmly floodlit front facade vs. the cooler, shadowed side facade)
+// at Level 02's row; the side facade's outer edge (~1240px) is
+// interpolated from two further warmth/sky-transition scans (near the
+// roofline and near ground level, since perspective shifts it by row).
 const BUILDING_VIEWBOX = "0 0 1290 714";
-const FLOOR_ZONES: Record<FloorId, string> = {
-  "6": "206,184 1084,184 1084,240 206,240",
-  "5": "206,240 1084,240 1084,283 206,283",
-  "4": "206,283 1084,283 1084,326 206,326",
-  "3": "206,326 1084,326 1084,369 206,369",
-  "2": "206,369 1084,369 1084,413 206,413",
-  "1": "206,413 1084,413 1084,457 206,457",
-  ground: "206,457 1084,457 1084,543 206,543",
+const FRONT_LEFT_X = 206;
+const CORNER_X = 960;
+const SIDE_RIGHT_X = 1240;
+
+const FLOOR_BAND_Y: Record<FloorId, { top: number; bottom: number }> = {
+  "6": { top: 184, bottom: 240 },
+  "5": { top: 240, bottom: 283 },
+  "4": { top: 283, bottom: 326 },
+  "3": { top: 326, bottom: 369 },
+  "2": { top: 369, bottom: 413 },
+  "1": { top: 413, bottom: 457 },
+  ground: { top: 457, bottom: 543 },
 };
+
+function floorZonePolygons(floorId: FloorId): { front: string; side: string } {
+  const { top, bottom } = FLOOR_BAND_Y[floorId];
+  return {
+    front: `${FRONT_LEFT_X},${top} ${CORNER_X},${top} ${CORNER_X},${bottom} ${FRONT_LEFT_X},${bottom}`,
+    side: `${CORNER_X},${top} ${SIDE_RIGHT_X},${top} ${SIDE_RIGHT_X},${bottom} ${CORNER_X},${bottom}`,
+  };
+}
+
+const INTERACTIVE_FLOORS = FLOORS.filter((f) => f.id !== "ground");
+const GROUND_FLOOR = FLOORS.find((f) => f.id === "ground")!;
 
 const prototypeUnit = UNITS.find((u) => u.floor === PROTOTYPE_FLOOR_ID)!;
 const prototypeUnitType = unitTypeById(prototypeUnit.unitTypeId)!;
@@ -48,7 +71,7 @@ type View = "building" | "floorplate" | "unitplan";
 export function ResidenceExplorer() {
   const [view, setView] = useState<View>("building");
   const [hoveredFloorId, setHoveredFloorId] = useState<FloorId | null>(null);
-  const [unitHovered, setUnitHovered] = useState(false);
+  const [unitSelected, setUnitSelected] = useState(false);
   const panZoom = usePanZoom();
 
   const enterFloorplate = useCallback(() => {
@@ -66,6 +89,7 @@ export function ResidenceExplorer() {
 
   const backToFloorplate = useCallback(() => {
     panZoom.reset();
+    setUnitSelected(false);
     setView("floorplate");
   }, [panZoom]);
 
@@ -80,12 +104,37 @@ export function ResidenceExplorer() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [view, backToFloorplate, backToBuilding]);
 
+  // Click/tap is one control that does double duty for mouse and touch:
+  // hover (mouse) already selects a floor before the click fires, so a
+  // desktop click on an already-hovered floor opens it immediately. On
+  // touch, there's no hover, so the first tap only selects/highlights
+  // (matching STEP 10's "tap once selects... tap EXPLORE FLOOR opens");
+  // a second tap on the zone (now already selected) opens it too.
+  const handleFloorInteraction = useCallback(
+    (floorId: FloorId) => {
+      if (hoveredFloorId !== floorId) {
+        setHoveredFloorId(floorId);
+        return;
+      }
+      if (floorId === PROTOTYPE_FLOOR_ID) enterFloorplate();
+    },
+    [hoveredFloorId, enterFloorplate],
+  );
+
+  const handleUnitInteraction = useCallback(() => {
+    if (!unitSelected) {
+      setUnitSelected(true);
+      return;
+    }
+    enterUnitPlan();
+  }, [unitSelected, enterUnitPlan]);
+
   const hoveredFloor = hoveredFloorId ? floorById(hoveredFloorId) : null;
 
   return (
     <section className="residence-explorer" data-view={view}>
       {/* BUILDING VIEW */}
-      <div className="rex-building" aria-hidden={view !== "building"}>
+      <div className="rex-building" data-dimmed={hoveredFloorId ? "true" : "false"} aria-hidden={view !== "building"}>
         <img className="rex-building__image" src={CONSTRUCTION_VIDEO_FINAL_FRAME} alt="Native Haus — completed building" />
 
         <svg
@@ -94,36 +143,39 @@ export function ResidenceExplorer() {
           preserveAspectRatio="xMidYMid slice"
           aria-hidden="true"
         >
-          {FLOORS.map((floor) => {
+          {[...INTERACTIVE_FLOORS, GROUND_FLOOR].map((floor) => {
             const isActive = floor.id === PROTOTYPE_FLOOR_ID;
             const isHovered = hoveredFloorId === floor.id;
-            return (
-              <polygon
-                key={floor.id}
-                points={FLOOR_ZONES[floor.id]}
-                className={[
-                  "rex-zone",
-                  isActive ? "rex-zone--active" : "rex-zone--inert",
-                  isHovered ? "rex-zone--hover" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                role={isActive ? "button" : undefined}
-                tabIndex={isActive ? 0 : -1}
-                onMouseEnter={() => setHoveredFloorId(floor.id)}
-                onMouseLeave={() => setHoveredFloorId((prev) => (prev === floor.id ? null : prev))}
-                onClick={isActive ? enterFloorplate : undefined}
-                onKeyDown={
-                  isActive
-                    ? (event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          enterFloorplate();
-                        }
-                      }
-                    : undefined
+            const { front, side } = floorZonePolygons(floor.id);
+            const zoneClass = [
+              "rex-zone",
+              isActive ? "rex-zone--active" : "rex-zone--inert",
+              isHovered ? "rex-zone--hover" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+            const pointerProps = {
+              onMouseEnter: () => setHoveredFloorId(floor.id),
+              onMouseLeave: () => setHoveredFloorId((prev) => (prev === floor.id ? null : prev)),
+              onClick: () => handleFloorInteraction(floor.id),
+            };
+            const onKeyDown = isActive
+              ? (event: ReactKeyboardEvent) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    handleFloorInteraction(floor.id);
+                  }
                 }
-              />
+              : undefined;
+            return (
+              <g key={floor.id} className={zoneClass}>
+                {/* Front facade carries the one keyboard-focusable stop per
+                    floor; the side facade shares the same hover/click
+                    handlers so the highlight wraps the corner, without
+                    doubling up on tab order. */}
+                <polygon points={front} role={isActive ? "button" : undefined} tabIndex={isActive ? 0 : -1} onKeyDown={onKeyDown} {...pointerProps} />
+                <polygon points={side} {...pointerProps} />
+              </g>
             );
           })}
         </svg>
@@ -134,7 +186,9 @@ export function ResidenceExplorer() {
               <span className="rex-floor-panel__accent" aria-hidden="true" />
               LEVEL {hoveredFloor.label}
             </span>
-            <span className="rex-floor-panel__title">Residences</span>
+            {hoveredFloor.id === PROTOTYPE_FLOOR_ID && (
+              <span className="rex-floor-panel__count">{PROTOTYPE_FLOOR_RESIDENCE_COUNT} RESIDENCES</span>
+            )}
             <ul className="rex-floor-panel__list">
               {BEDROOM_CATEGORIES.map((category) => (
                 <li key={category.id}>{category.browseLabel}</li>
@@ -152,7 +206,7 @@ export function ResidenceExplorer() {
       </div>
 
       {/* FLOOR PLATE VIEW */}
-      <div className="rex-plate" aria-hidden={view === "building"}>
+      <div className="rex-plate" data-dimmed={unitSelected ? "true" : "false"} aria-hidden={view === "building"}>
         <img
           className="rex-plate__image"
           src={FLOOR_PLATE_ASSETS.typical}
@@ -162,29 +216,34 @@ export function ResidenceExplorer() {
         <svg className="rex-plate__zones" viewBox={FLOOR_PLATE_VIEWBOX} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
           <polygon
             points={prototypeUnit.floorPlatePolygon}
-            className={`rex-unit-zone${unitHovered ? " rex-unit-zone--hover" : ""}`}
+            className={`rex-unit-zone${unitSelected ? " rex-unit-zone--hover" : ""}`}
             role="button"
             tabIndex={view === "floorplate" ? 0 : -1}
-            onMouseEnter={() => setUnitHovered(true)}
-            onMouseLeave={() => setUnitHovered(false)}
-            onClick={enterUnitPlan}
+            onMouseEnter={() => setUnitSelected(true)}
+            onMouseLeave={() => setUnitSelected(false)}
+            onClick={handleUnitInteraction}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                enterUnitPlan();
+                handleUnitInteraction();
               }
             }}
           />
         </svg>
 
-        {unitHovered && view === "floorplate" && (
+        {unitSelected && view === "floorplate" && (
           <div className="rex-unit-chip">
-            {prototypeUnit.unitNumber} / {prototypeUnitType.label.toUpperCase()} / {prototypeUnitType.areaSqFt} SQ FT
+            <span className="rex-unit-chip__number">{prototypeUnit.unitNumber}</span>
+            <span className="rex-unit-chip__type">{prototypeUnitType.label.toUpperCase()}</span>
+            <span className="rex-unit-chip__area">{prototypeUnitType.areaSqFt} SQ FT</span>
+            <button type="button" className="rex-unit-chip__cta" onClick={enterUnitPlan}>
+              VIEW PLAN
+            </button>
           </div>
         )}
 
         <button type="button" className="rex-back" onClick={backToBuilding}>
-          ← BUILDING
+          BACK TO BUILDING
         </button>
       </div>
 
@@ -206,12 +265,13 @@ export function ResidenceExplorer() {
           <div className="rex-unitplan__info">
             <span className="rex-unitplan__info-type">{prototypeUnitType.label.toUpperCase()}</span>
             <span className="rex-unitplan__info-meta">
-              UNIT {prototypeUnit.unitNumber} · LEVEL {prototypeFloor.label} · {prototypeUnitType.areaSqFt} SQ FT
+              UNIT {prototypeUnit.unitNumber} · LEVEL {prototypeFloor.label}
             </span>
+            <span className="rex-unitplan__info-area">{prototypeUnitType.areaSqFt} SQ FT</span>
           </div>
 
           <button type="button" className="rex-back" onClick={backToFloorplate}>
-            ← FLOOR PLATE
+            BACK TO FLOOR
           </button>
         </div>
       )}
