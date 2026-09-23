@@ -3,7 +3,7 @@ import { TOTAL_SCROLL_VH } from "../config/scenes";
 import { useLenis, getLenis } from "../lib/useLenis";
 import { useScrollProgress } from "../lib/useScrollProgress";
 import { Stage, type StageHandle } from "./Stage";
-import { ResidenceExplorer3D } from "./explorer3d/ResidenceExplorer3D";
+import { SplineResidenceExplorer } from "./SplineResidenceExplorer";
 
 export function Experience() {
   useLenis();
@@ -18,10 +18,10 @@ export function Experience() {
   useScrollProgress(cinematicRef, handleUpdate);
 
   // "EXPLORE RESIDENCES" doesn't swap to a separate mode — it smooth-
-  // scrolls the page to where the Residence Explorer's own pinned
-  // section begins, which sits immediately after this cinematic
-  // section in normal document flow (see index.css's sticky .stage).
-  // Continuing to scroll manually does exactly the same thing.
+  // scrolls the page to where the (placeholder) Residence Explorer
+  // section begins, which sits immediately after this cinematic section
+  // in normal document flow (see index.css's sticky .stage). Continuing
+  // to scroll manually does exactly the same thing.
   const handleExplore = useCallback(() => {
     const cinematic = cinematicRef.current;
     if (!cinematic) return;
@@ -36,7 +36,7 @@ export function Experience() {
       <div ref={cinematicRef} className="cinematic-sticky-wrapper" style={{ height: `${TOTAL_SCROLL_VH}vh` }}>
         <Stage ref={stageRef} onExplore={handleExplore} />
       </div>
-      <ResidenceExplorer3D />
+      <SplineResidenceExplorer />
     </>
   );
 }

@@ -9,11 +9,12 @@ interface HeroRevealProps {
   onExplore?: () => void;
 }
 
-// Staggered sub-beats within the heroReveal window (0.95-1.0): the camera
-// has already settled into the front three-quarter position by the time
-// any of this becomes visible — title, then place, then a restrained
-// tagline, then (once scroll has fully settled) the entry point into the
-// Residence Explorer.
+// Staggered sub-beats within SCENE_WINDOWS.heroReveal: the camera has
+// already settled into the front three-quarter position, and the
+// construction video has already played through and is holding its
+// final frame (see VideoReveal.tsx), by the time any of this becomes
+// visible — title, then place, then a restrained tagline, then (once
+// scroll has fully settled) the entry point into the Residence Explorer.
 const [heroStart, heroEnd] = SCENE_WINDOWS.heroReveal.window;
 const heroSpan = heroEnd - heroStart;
 const TITLE_WINDOW: ProgressWindow = [heroStart, heroStart + heroSpan * 0.4];

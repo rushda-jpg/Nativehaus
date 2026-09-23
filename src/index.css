@@ -1038,3 +1038,110 @@ body {
     max-width: calc(100vw - 2rem);
   }
 }
+
+/* ==========================================================================
+   Spline Residence Explorer placeholder — a restrained cinematic
+   transition (fades/rises into view, consistent with the rest of the
+   site's typography treatment) above a clean, correctly-proportioned
+   container the externally-produced Spline scene will mount into later.
+   ========================================================================== */
+
+.spline-explorer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(2.5rem, 6vw, 4.5rem);
+  padding: clamp(3rem, 8vw, 6rem) clamp(1.2rem, 5vw, 4rem);
+  background: #0a0b0d;
+  color: #ece7dc;
+}
+
+.spline-explorer__intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 1s ease, transform 1s ease;
+}
+
+.spline-explorer--visible .spline-explorer__intro {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.spline-explorer__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.72rem;
+  letter-spacing: 0.4em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.spline-explorer__accent {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--native-red);
+  flex: none;
+}
+
+.spline-explorer__heading {
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1.05;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.spline-explorer__viewport {
+  width: min(1100px, 100%);
+  aspect-ratio: 16 / 9;
+  border: 1px solid rgba(236, 231, 220, 0.14);
+  background: #0d0e10;
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 1s ease 0.15s, transform 1s ease 0.15s;
+  overflow: hidden;
+}
+
+.spline-explorer--visible .spline-explorer__viewport {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.spline-explorer__iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.spline-explorer__placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #4a473e;
+}
+
+@media (max-width: 640px) {
+  .spline-explorer {
+    gap: 2rem;
+  }
+
+  .spline-explorer__viewport {
+    aspect-ratio: 4 / 5;
+  }
+}

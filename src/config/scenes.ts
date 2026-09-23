@@ -15,9 +15,13 @@ export interface SceneWindow {
 //              real Mapbox geography throughout
 //   0.40-0.45  Plot hold — camera settles/stops moving while Mapbox
 //              crossfades into the construction video
-//   0.45-0.95  Construction — scroll-scrubbed video (VideoReveal.tsx);
-//              Mapbox is fully faded out and inert by this point
-//   0.95-1.00  Completed Native Haus hero frame + title typography
+//   0.45+      The video plays ONCE, automatically, muted — not
+//              scroll-scrubbed (see VideoReveal.tsx). Scroll is locked
+//              for those few real seconds (the section "remains pinned
+//              while the video plays"), so there's no dedicated scroll
+//              window for it here; once it ends and holds its final
+//              frame, scrolling unlocks and continues straight into:
+//   0.45-0.62  Completed Native Haus hero frame + title typography
 export const SCENE_WINDOWS = {
   deepSpace: { id: "deepSpace", label: "ARRIVAL — DEEP SPACE", window: [0, 0.05] },
   descentToDubai: { id: "descentToDubai", label: "ARRIVAL — DESCENT TO DUBAI", window: [0.05, 0.13] },
@@ -26,8 +30,7 @@ export const SCENE_WINDOWS = {
   siteApproach: { id: "siteApproach", label: "THE SITE — APPROACH", window: [0.24, 0.3] },
   plotBoundary: { id: "plotBoundary", label: "THE SITE — BOUNDARY", window: [0.3, 0.4] },
   plotHold: { id: "plotHold", label: "THE SITE — MAPBOX TO VIDEO", window: [0.4, 0.45] },
-  videoConstruction: { id: "videoConstruction", label: "NATIVE HAUS — CONSTRUCTION", window: [0.45, 0.95] },
-  heroReveal: { id: "heroReveal", label: "NATIVE HAUS — FRONT REVEAL", window: [0.95, 1.0] },
+  heroReveal: { id: "heroReveal", label: "NATIVE HAUS — FRONT REVEAL", window: [0.45, 0.62] },
 } as const satisfies Record<string, SceneWindow>;
 
 export type SceneId = keyof typeof SCENE_WINDOWS;
