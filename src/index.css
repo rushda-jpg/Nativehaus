@@ -1,3 +1,12 @@
+:root {
+  --native-red: #c1272d;
+  /* Warm champagne/bronze illumination — the Residence Explorer's hover
+     highlight. Native red stays reserved for small restrained accents
+     only (an eyebrow rule, a border stripe), never the highlight color
+     itself — see the Residence Explorer's visual standard. */
+  --champagne: #d9b877;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -17,14 +26,18 @@ body {
   overflow-x: hidden;
 }
 
-.scroll-spacer {
+/* The cinematic sequence's own pin: sticky (not fixed), so .stage
+   naturally releases once this wrapper's height is scrolled past,
+   revealing the Residence Explorer section that follows it in normal
+   document flow — no manual show/hide logic needed. */
+.cinematic-sticky-wrapper {
+  position: relative;
   width: 100vw;
-  pointer-events: none;
 }
 
 .stage {
-  position: fixed;
-  inset: 0;
+  position: sticky;
+  top: 0;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
@@ -36,6 +49,37 @@ body {
   inset: 0;
   width: 100%;
   height: 100%;
+  opacity: 1;
+}
+
+.video-reveal {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  opacity: 0;
+  pointer-events: none;
+  background: #04070c;
+}
+
+.video-reveal__frame,
+.video-reveal__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #04070c;
+  border: none;
+}
+
+.video-reveal__frame {
+  opacity: 1;
+}
+
+.video-reveal__frame--final {
+  opacity: 0;
+  transition: opacity 0.35s ease;
 }
 
 .map-canvas--missing-token {
@@ -63,13 +107,13 @@ body {
   opacity: 0.4;
 }
 
-.scene-backdrop {
+.hero-vignette {
   position: absolute;
   inset: 0;
-  background: #030610;
-  opacity: 0;
-  pointer-events: none;
   z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at 50% 62%, rgba(0, 0, 0, 0) 30%, rgba(4, 6, 10, 0.55) 78%, rgba(2, 3, 6, 0.86) 100%);
 }
 
 .site-typography {
@@ -93,9 +137,20 @@ body {
 }
 
 .site-typography__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
   font-size: 0.75rem;
   letter-spacing: 0.42em;
   color: #b9b3a4;
+}
+
+.site-typography__accent {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--native-red);
+  flex: none;
 }
 
 .site-typography__title {
@@ -109,6 +164,70 @@ body {
   font-size: 0.8rem;
   letter-spacing: 0.32em;
   color: #8f8a7d;
+}
+
+.hero-reveal {
+  position: absolute;
+  left: 50%;
+  bottom: 11vh;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.hero-reveal__title,
+.hero-reveal__meta,
+.hero-reveal__tagline {
+  text-transform: uppercase;
+  font-weight: 300;
+  color: #ece7dc;
+}
+
+.hero-reveal__title {
+  font-size: clamp(2.6rem, 5.6vw, 5.2rem);
+  letter-spacing: 0.07em;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.hero-reveal__meta {
+  font-size: 0.85rem;
+  letter-spacing: 0.36em;
+  color: #b9b3a4;
+}
+
+.hero-reveal__tagline {
+  font-size: 0.72rem;
+  letter-spacing: 0.28em;
+  color: #8f8a7d;
+}
+
+.hero-reveal__cta {
+  margin-top: 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(236, 231, 220, 0.35);
+  padding: 0 0 0.4rem;
+  font-family: inherit;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.32em;
+  color: #ece7dc;
+  cursor: pointer;
+  pointer-events: none;
+  transition: border-color 0.25s ease, color 0.25s ease;
+}
+
+.hero-reveal__cta:hover {
+  color: var(--native-red);
+  border-color: var(--native-red);
 }
 
 .debug-hud {
@@ -138,6 +257,12 @@ body {
   margin-top: 0.2rem;
 }
 
+.debug-hud__row--divider {
+  margin-top: 0.45rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(236, 231, 220, 0.15);
+}
+
 .debug-hud__label {
   color: #6b7280;
   width: 4.2rem;
@@ -146,4 +271,1543 @@ body {
 
 .debug-hud__value {
   color: #ece7dc;
+}
+
+.calibration-panel {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 30;
+  width: 20rem;
+  max-width: calc(100vw - 2.5rem);
+  padding: 0.85rem 1rem;
+  background: rgba(4, 6, 10, 0.75);
+  border: 1px solid rgba(193, 39, 45, 0.4);
+  border-radius: 4px;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  color: #cdd3da;
+  backdrop-filter: blur(6px);
+}
+
+.calibration-panel__title {
+  color: var(--native-red);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  margin-bottom: 0.5rem;
+}
+
+.calibration-panel__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.15rem 0;
+}
+
+.calibration-panel__label {
+  color: #6b7280;
+  flex: none;
+}
+
+.calibration-panel__value {
+  color: #ece7dc;
+  text-align: right;
+  word-break: break-all;
+}
+
+.calibration-panel__copy {
+  width: 100%;
+  margin-top: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(193, 39, 45, 0.15);
+  border: 1px solid rgba(193, 39, 45, 0.5);
+  border-radius: 3px;
+  color: #ece7dc;
+  font-family: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.calibration-panel__copy:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.calibration-panel__copy:not(:disabled):hover {
+  background: rgba(193, 39, 45, 0.28);
+}
+
+.calibration-panel__hint {
+  margin-top: 0.6rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   Residence Explorer — same premium cinematic language, different mode:
+   click/tap-driven, independently scrolling. Dark charcoal / warm ivory,
+   Native red as a small accent only, no cards-with-shadows, no blue UI.
+   ========================================================================== */
+
+.explorer {
+  min-height: 100vh;
+  background: #0c0d10;
+  color: #ece7dc;
+}
+
+.explorer__header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 1.4rem clamp(1.2rem, 4vw, 3rem);
+  background: rgba(12, 13, 16, 0.86);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(236, 231, 220, 0.08);
+}
+
+.explorer__back-to-cinematic {
+  background: none;
+  border: none;
+  color: #8f8a7d;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  padding: 0.4rem 0;
+  transition: color 0.2s ease;
+}
+
+.explorer__back-to-cinematic:hover {
+  color: #ece7dc;
+}
+
+.explorer__title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.explorer__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.7rem;
+  letter-spacing: 0.36em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.explorer__accent {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--native-red);
+  flex: none;
+}
+
+.explorer__heading {
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  letter-spacing: 0.04em;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.explorer__tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.explorer__tab {
+  background: none;
+  border: 1px solid rgba(236, 231, 220, 0.18);
+  color: #b9b3a4;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.6rem 1.1rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.explorer__tab--active {
+  color: #ece7dc;
+  border-color: #ece7dc;
+}
+
+.explorer__tab:hover {
+  color: #ece7dc;
+}
+
+.explorer__main {
+  padding: clamp(1.5rem, 5vw, 4rem) clamp(1.2rem, 4vw, 3rem) 6rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.explorer__screen {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.explorer__breadcrumb {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: #8f8a7d;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  padding: 0;
+}
+
+.explorer__breadcrumb:hover {
+  color: #ece7dc;
+}
+
+.explorer__screen-heading {
+  font-size: clamp(1.8rem, 3.6vw, 3rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.explorer__pending {
+  color: #8f8a7d;
+  font-size: 0.9rem;
+}
+
+.explorer__type-meta {
+  color: #b9b3a4;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.explorer__type-plan {
+  height: min(70vh, 720px);
+}
+
+.explorer__view-sample {
+  align-self: flex-start;
+  background: none;
+  border: 1px solid rgba(236, 231, 220, 0.2);
+  color: #ece7dc;
+  padding: 0.75rem 1.3rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.explorer__view-sample:hover {
+  border-color: var(--native-red);
+  color: var(--native-red);
+}
+
+/* ---- Floor selector: flat elevation bands, not a 3D cutaway ---- */
+
+.floor-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  padding: 2rem 0;
+}
+
+.floor-selector__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.72rem;
+  letter-spacing: 0.4em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.floor-selector__accent {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--native-red);
+}
+
+.floor-selector__levels {
+  display: flex;
+  flex-direction: column-reverse;
+  width: min(560px, 92vw);
+  border-top: 1px solid rgba(236, 231, 220, 0.1);
+}
+
+.floor-selector__level {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(236, 231, 220, 0.1);
+  color: #8f8a7d;
+  padding: 1.1rem 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, padding 0.2s ease;
+}
+
+.floor-selector__level:not(:disabled):hover,
+.floor-selector__level--hovered:not(:disabled) {
+  color: #ece7dc;
+  background: rgba(236, 231, 220, 0.05);
+  padding-left: 1.2rem;
+}
+
+.floor-selector__level:disabled {
+  color: #4a473e;
+  cursor: default;
+}
+
+.floor-selector__level-label {
+  font-size: clamp(1.1rem, 2.4vw, 1.5rem);
+  letter-spacing: 0.1em;
+}
+
+.floor-selector__level-note {
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  color: #5c584d;
+}
+
+/* ---- Floor plate: background plan + transparent SVG interaction layer ---- */
+
+.floor-plate {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.6;
+  background: #0c0d10;
+  overflow: hidden;
+  border: 1px solid rgba(236, 231, 220, 0.08);
+}
+
+.floor-plate__background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.floor-plate__overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.floor-plate__unit {
+  fill: rgba(193, 39, 45, 0.05);
+  stroke: rgba(236, 231, 220, 0.35);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: fill 0.15s ease, opacity 0.15s ease, stroke 0.15s ease;
+}
+
+.floor-plate__unit--hovered {
+  fill: rgba(193, 39, 45, 0.28);
+  stroke: #ece7dc;
+}
+
+.floor-plate__unit--dimmed {
+  opacity: 0.35;
+}
+
+.floor-plate__unit--debug {
+  stroke: #22d3ee;
+  stroke-dasharray: 4 3;
+}
+
+.floor-plate__debug-label {
+  fill: #22d3ee;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.floor-plate__debug-badge {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  background: rgba(4, 6, 10, 0.78);
+  border: 1px solid #22d3ee;
+  color: #22d3ee;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  padding: 0.4rem 0.6rem;
+  pointer-events: none;
+}
+
+.floor-plate__tooltip {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  background: rgba(4, 6, 10, 0.9);
+  border: 1px solid rgba(236, 231, 220, 0.2);
+  padding: 0.6rem 0.85rem;
+  min-width: 150px;
+}
+
+.floor-plate__tooltip-number {
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: #ece7dc;
+}
+
+.floor-plate__tooltip-type {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: #b9b3a4;
+  margin-top: 0.15rem;
+}
+
+.floor-plate__tooltip-area {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: #8f8a7d;
+}
+
+.floor-plate__pending-note {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  color: #5c584d;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+}
+
+/* ---- Unit plan viewer: zoom/pan/fullscreen, never distorted ---- */
+
+.unit-plan-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #0c0d10;
+}
+
+.unit-plan-viewer__stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+.unit-plan-viewer__stage:active {
+  cursor: grabbing;
+}
+
+.unit-plan-viewer__image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  display: block;
+  transform-origin: center center;
+  will-change: transform;
+  user-select: none;
+}
+
+.unit-plan-viewer__controls {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 0;
+}
+
+.unit-plan-viewer__button {
+  background: none;
+  border: 1px solid rgba(236, 231, 220, 0.18);
+  color: #b9b3a4;
+  min-width: 2.4rem;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.unit-plan-viewer__button:hover:not(:disabled) {
+  color: #ece7dc;
+  border-color: #ece7dc;
+}
+
+.unit-plan-viewer__button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ---- Residence browser: large editorial cards, not portal tiles ---- */
+
+.residence-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 2.8rem;
+}
+
+.residence-browser__category-title {
+  font-size: clamp(1.1rem, 2.2vw, 1.4rem);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0 0 1.1rem;
+  color: #ece7dc;
+  border-bottom: 1px solid rgba(236, 231, 220, 0.1);
+  padding-bottom: 0.7rem;
+}
+
+.residence-browser__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1px;
+  background: rgba(236, 231, 220, 0.08);
+}
+
+.residence-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  background: #0c0d10;
+  border: none;
+  color: #ece7dc;
+  text-align: left;
+  padding: 1.6rem 1.4rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.residence-card:hover {
+  background: #17181c;
+}
+
+.residence-card__label {
+  font-size: 1.15rem;
+  letter-spacing: 0.03em;
+}
+
+.residence-card__area {
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  color: #b9b3a4;
+}
+
+.residence-card__count {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  color: #6b6659;
+}
+
+/* ---- Unit detail panel: reusable across both browse modes ---- */
+
+.unit-detail-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.unit-detail-panel__scrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(4, 6, 10, 0.72);
+  border: none;
+  cursor: pointer;
+}
+
+.unit-detail-panel__sheet {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100vw);
+  height: 100%;
+  background: #0c0d10;
+  border-left: 1px solid rgba(236, 231, 220, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.unit-detail-panel__close {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+  background: none;
+  border: none;
+  color: #8f8a7d;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.unit-detail-panel__close:hover {
+  color: #ece7dc;
+}
+
+.unit-detail-panel__eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+  color: #8f8a7d;
+  text-transform: uppercase;
+}
+
+.unit-detail-panel__unit-number {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 400;
+  margin: 0.5rem 0 1.3rem;
+  letter-spacing: 0.02em;
+}
+
+.unit-detail-panel__facts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.7rem;
+  margin: 0 0 1.6rem;
+}
+
+.unit-detail-panel__fact {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(236, 231, 220, 0.08);
+  padding-bottom: 0.6rem;
+}
+
+.unit-detail-panel__fact dt {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: #6b6659;
+}
+
+.unit-detail-panel__fact dd {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  color: #ece7dc;
+  text-align: right;
+}
+
+.unit-detail-panel__plan {
+  flex: 1;
+  min-height: 380px;
+  border: 1px solid rgba(236, 231, 220, 0.08);
+}
+
+@media (max-width: 720px) {
+  .unit-detail-panel {
+    justify-content: stretch;
+  }
+
+  .unit-detail-panel__sheet {
+    width: 100%;
+    border-left: none;
+  }
+}
+
+/* ==========================================================================
+   Spatial Residence Explorer (ResidenceExplorer3D) — pinned, scroll-
+   scrubbed 3D sequence: building stack -> Level 02 -> Unit 214 -> plan.
+   Same dark-charcoal/warm-ivory/restrained-red language as the rest of
+   the site; the plan itself stays the visual focus, so the DOM chrome
+   here is deliberately minimal (no cards, no heavy borders).
+   ========================================================================== */
+
+.residence3d-spacer {
+  position: relative;
+  width: 100vw;
+  background: #0a0b0d;
+}
+
+.residence3d-pin {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #0a0b0d;
+}
+
+.residence3d-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.residence3d-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.residence3d-levels {
+  position: absolute;
+  top: 50%;
+  right: clamp(1.2rem, 4vw, 3.5rem);
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.1rem;
+  z-index: 2;
+}
+
+.residence3d-levels__item {
+  background: none;
+  border: none;
+  color: #6b6659;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  padding: 0.55rem 0.4rem;
+  cursor: pointer;
+  text-align: right;
+  transition: color 0.25s ease, letter-spacing 0.25s ease;
+}
+
+.residence3d-levels__item--inert {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.residence3d-levels__item:not(:disabled):hover {
+  color: #ece7dc;
+}
+
+.residence3d-levels__item--active {
+  color: var(--native-red);
+  letter-spacing: 0.22em;
+}
+
+.residence3d-detail {
+  position: absolute;
+  left: clamp(1.2rem, 5vw, 4rem);
+  bottom: clamp(2rem, 8vh, 5rem);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  opacity: 0;
+  pointer-events: none;
+  max-width: 22rem;
+  transition: opacity 0.2s ease;
+}
+
+.residence3d-detail__type {
+  font-size: clamp(1.5rem, 3vw, 2.4rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ece7dc;
+}
+
+.residence3d-detail__area {
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.residence3d-detail__meta {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: #6b6659;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .residence3d-levels {
+    right: 1rem;
+    gap: 0;
+  }
+
+  .residence3d-levels__item {
+    font-size: 0.68rem;
+    padding: 0.4rem 0.3rem;
+  }
+
+  .residence3d-detail {
+    left: 1rem;
+    bottom: 1.5rem;
+    max-width: calc(100vw - 2rem);
+  }
+}
+
+/* ==========================================================================
+   Spline Residence Explorer placeholder — a restrained cinematic
+   transition (fades/rises into view, consistent with the rest of the
+   site's typography treatment) above a clean, correctly-proportioned
+   container the externally-produced Spline scene will mount into later.
+   ========================================================================== */
+
+.spline-explorer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(2.5rem, 6vw, 4.5rem);
+  padding: clamp(3rem, 8vw, 6rem) clamp(1.2rem, 5vw, 4rem);
+  background: #0a0b0d;
+  color: #ece7dc;
+}
+
+.spline-explorer__intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 1s ease, transform 1s ease;
+}
+
+.spline-explorer--visible .spline-explorer__intro {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.spline-explorer__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.72rem;
+  letter-spacing: 0.4em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.spline-explorer__accent {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--native-red);
+  flex: none;
+}
+
+.spline-explorer__heading {
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1.05;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.spline-explorer__viewport {
+  width: min(1100px, 100%);
+  aspect-ratio: 16 / 9;
+  border: 1px solid rgba(236, 231, 220, 0.14);
+  background: #0d0e10;
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 1s ease 0.15s, transform 1s ease 0.15s;
+  overflow: hidden;
+}
+
+.spline-explorer--visible .spline-explorer__viewport {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.spline-explorer__iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.spline-explorer__placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #4a473e;
+}
+
+@media (max-width: 640px) {
+  .spline-explorer {
+    gap: 2rem;
+  }
+
+  .spline-explorer__viewport {
+    aspect-ratio: 4 / 5;
+  }
+}
+
+/* ==========================================================================
+   Floor Explorer — CSS 3D (perspective + transform-style: preserve-3d),
+   scrubbed by GSAP/ScrollTrigger. No Three.js, no Spline, no black void:
+   the completed Native Haus hero frame stays full-bleed behind the
+   stack, gradually darkened/blurred, so the sequence never leaves the
+   cinematic frame.
+   ========================================================================== */
+
+.floor-explorer-spacer {
+  position: relative;
+  width: 100vw;
+  background: #0a0b0d;
+}
+
+.floor-explorer {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #0a0b0d;
+}
+
+.floor-explorer__background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  will-change: filter;
+}
+
+.floor-explorer__scrim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, rgba(10, 11, 13, 0.1) 0%, rgba(6, 7, 9, 0.6) 72%, rgba(4, 5, 6, 0.82) 100%);
+}
+
+.floor-explorer__intro {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+.floor-explorer__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.72rem;
+  letter-spacing: 0.4em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.floor-explorer__accent {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--native-red);
+  flex: none;
+}
+
+.floor-explorer__heading {
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0;
+  color: #ece7dc;
+}
+
+.floor-explorer__perspective {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1600px;
+  perspective-origin: 50% 40%;
+  z-index: 2;
+}
+
+.floor-stack {
+  position: relative;
+  width: min(58vw, 720px);
+  height: 1px;
+}
+
+.floor-plane {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 44px;
+  transform-style: preserve-3d;
+}
+
+.floor-plane__body {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #23211d 0%, #171614 100%);
+  border-bottom: 2px solid #a9773f;
+  box-shadow: inset 0 1px 0 rgba(236, 231, 220, 0.05);
+}
+
+.floor-plane--active .floor-plane__body {
+  border-bottom-color: var(--native-red);
+}
+
+.floor-plane__plate {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  transform: translateY(-50%);
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(236, 231, 220, 0.12);
+}
+
+.floor-plane__dim {
+  position: absolute;
+  inset: 0;
+  background: #04070c;
+}
+
+.floor-plane__label {
+  position: absolute;
+  left: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: #8f8a7d;
+  white-space: nowrap;
+}
+
+.floor-plane--active .floor-plane__label {
+  color: var(--native-red);
+}
+
+.unit-overlay {
+  position: absolute;
+  border: 1px solid rgba(193, 39, 45, 0.6);
+  background: rgba(193, 39, 45, 0.22);
+  box-shadow: 0 0 24px rgba(193, 39, 45, 0.35);
+}
+
+.unit-plan-stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(64vw, 620px);
+  aspect-ratio: 800 / 760;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 11, 13, 0.4);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.unit-plan-stage__image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  display: block;
+}
+
+.floor-explorer__detail {
+  position: absolute;
+  left: clamp(1.2rem, 5vw, 4rem);
+  bottom: clamp(2rem, 8vh, 5rem);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 22rem;
+  pointer-events: none;
+}
+
+.floor-explorer__detail-type {
+  font-size: clamp(1.5rem, 3vw, 2.4rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ece7dc;
+}
+
+.floor-explorer__detail-area {
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.floor-explorer__detail-meta {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: #6b6659;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .floor-stack {
+    width: min(72vw, 420px);
+  }
+
+  .floor-plane__label {
+    left: calc(100% + 8px);
+    font-size: 0.62rem;
+  }
+
+  .unit-plan-stage {
+    width: min(84vw, 420px);
+  }
+}
+
+/* ============================================================
+   Residence Explorer — flat, image-backed hover/click interaction.
+   The real building photograph and the floor plate / unit plan
+   artwork never move or separate; only transparent SVG polygons
+   layered on top of them respond to the pointer, and the three
+   views (building / floor plate / unit plan) crossfade in place.
+   ============================================================ */
+
+.residence-explorer {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-height: 640px;
+  overflow: hidden;
+  background: #06050a;
+}
+
+.rex-building,
+.rex-plate {
+  position: absolute;
+  inset: 0;
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s ease,
+    filter 0.7s ease;
+}
+
+.rex-building__image,
+.rex-plate__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.rex-plate__image {
+  object-fit: contain;
+  background: #0a0910;
+}
+
+/* "The remaining building may dim very slightly" / "subtly reduce
+   emphasis on surrounding units" — a soft brightness dip on the whole
+   underlying image while a floor/unit is hovered, never an opaque
+   overlay covering anything. */
+.rex-building__image,
+.rex-plate__image {
+  transition: filter 0.3s ease;
+}
+
+.rex-building[data-dimmed="true"] .rex-building__image {
+  filter: brightness(0.92);
+}
+
+.rex-plate[data-dimmed="true"] .rex-plate__image {
+  filter: brightness(0.88);
+}
+
+.rex-building__zones,
+.rex-plate__zones {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Hit zones are invisible under normal conditions — only a hover state
+   reveals a subtle warm illumination. No visible outline/fill at rest,
+   no stroke line ever (a thin outline reads as UI, not light). */
+.rex-zone {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.rex-zone--active {
+  cursor: pointer;
+}
+
+.rex-zone--inert {
+  cursor: default;
+}
+
+/* mix-blend-mode: screen makes the fill read as warm light landing on
+   the facade rather than a flat coat of paint over it — champagne/
+   amber only, never red (red is reserved for small accents elsewhere). */
+.rex-zone--hover {
+  fill: var(--champagne);
+  fill-opacity: 0.16;
+  mix-blend-mode: screen;
+  transition: fill-opacity 0.3s ease;
+}
+
+.rex-zone--active.rex-zone--hover {
+  fill-opacity: 0.26;
+}
+
+.rex-unit-zone {
+  fill: transparent;
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.rex-unit-zone--hover {
+  fill: var(--champagne);
+  fill-opacity: 0.3;
+  mix-blend-mode: screen;
+  transition: fill-opacity 0.25s ease;
+}
+
+/* Floor plate view is hidden/receded while on the building view, and
+   recedes again (rather than reappearing) once the unit plan takes
+   over as the primary visual. */
+.residence-explorer[data-view="building"] .rex-plate {
+  opacity: 0;
+  transform: scale(0.97);
+  pointer-events: none;
+}
+
+.residence-explorer[data-view="floorplate"] .rex-plate,
+.residence-explorer[data-view="unitplan"] .rex-plate {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.residence-explorer[data-view="unitplan"] .rex-plate {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.residence-explorer[data-view="building"] .rex-building {
+  opacity: 1;
+  transform: scale(1);
+  filter: brightness(1) saturate(1);
+  pointer-events: auto;
+}
+
+.residence-explorer[data-view="floorplate"] .rex-building,
+.residence-explorer[data-view="unitplan"] .rex-building {
+  opacity: 0;
+  transform: scale(1.05);
+  filter: brightness(0.45) saturate(0.85);
+  pointer-events: none;
+}
+
+/* Editorial floor-info panel — restrained, not a generic card. */
+.rex-floor-panel {
+  position: absolute;
+  top: 50%;
+  right: 6vw;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: min(280px, 30vw);
+  padding: 1.6rem 1.7rem;
+  background: rgba(6, 5, 10, 0.55);
+  backdrop-filter: blur(6px);
+  border-left: 1px solid rgba(236, 231, 220, 0.18);
+  pointer-events: none;
+  animation: rexFadeIn 0.35s ease both;
+}
+
+@keyframes rexFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+/* For elements that aren't vertically centered via translateY(-50%) at
+   rest (unlike .rex-floor-panel) — a plain fade/slide, no permanent
+   vertical offset baked into the "to" keyframe. */
+@keyframes rexFadeInFlat {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.rex-floor-panel__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  color: #ece7dc;
+  text-transform: uppercase;
+}
+
+.rex-floor-panel__accent {
+  display: inline-block;
+  width: 16px;
+  height: 1px;
+  background: var(--native-red);
+}
+
+.rex-floor-panel__count {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: #ece7dc;
+}
+
+.rex-floor-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.86rem;
+  color: #b9b3a4;
+}
+
+.rex-floor-panel__cta {
+  pointer-events: auto;
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #ece7dc;
+  font: inherit;
+  font-size: 0.76rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-bottom: 1px solid var(--native-red);
+  padding-bottom: 2px;
+  transition: color 0.2s ease;
+}
+
+.rex-floor-panel__cta:hover {
+  color: var(--native-red);
+}
+
+.rex-floor-panel__soon {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: #6b6659;
+  text-transform: uppercase;
+}
+
+.rex-unit-chip {
+  position: absolute;
+  left: 6vw;
+  bottom: 8vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.9rem 1.2rem;
+  color: #ece7dc;
+  background: rgba(6, 5, 10, 0.6);
+  backdrop-filter: blur(6px);
+  border-left: 2px solid var(--native-red);
+  pointer-events: none;
+  animation: rexFadeInFlat 0.2s ease both;
+}
+
+.rex-unit-chip__number {
+  font-size: 1.3rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.rex-unit-chip__type {
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  color: #d9b877;
+  text-transform: uppercase;
+}
+
+.rex-unit-chip__area {
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.rex-unit-chip__cta {
+  pointer-events: auto;
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #ece7dc;
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-bottom: 1px solid var(--native-red);
+  padding-bottom: 2px;
+  transition: color 0.2s ease;
+}
+
+.rex-unit-chip__cta:hover {
+  color: var(--native-red);
+}
+
+.rex-back {
+  position: absolute;
+  top: 2.2rem;
+  left: 2.2rem;
+  padding: 0.55rem 0;
+  border: none;
+  background: none;
+  color: #b9b3a4;
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  z-index: 3;
+  transition: color 0.2s ease;
+}
+
+.rex-back:hover {
+  color: #ece7dc;
+}
+
+.residence-explorer[data-view="building"] .rex-back {
+  display: none;
+}
+
+/* Unit plan view — the official plan becomes the primary full-screen
+   visual, never distorted (object-fit: contain, aspect ratio intact). */
+.rex-unitplan {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: #06050a;
+  animation: rexFadeInFlat 0.6s ease both;
+}
+
+.rex-unitplan__stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+.rex-unitplan__image {
+  max-width: 78%;
+  max-height: 78%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: transform 0.05s linear;
+  will-change: transform;
+}
+
+.rex-unitplan__info {
+  position: absolute;
+  left: 6vw;
+  bottom: 8vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.rex-unitplan__info-type {
+  font-size: 1.2rem;
+  letter-spacing: 0.06em;
+  color: #ece7dc;
+  text-transform: uppercase;
+}
+
+.rex-unitplan__info-meta {
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  color: #b9b3a4;
+  text-transform: uppercase;
+}
+
+.rex-unitplan__info-area {
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  color: #d9b877;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .rex-floor-panel {
+    right: 4vw;
+    width: min(240px, 62vw);
+    padding: 1.2rem 1.3rem;
+  }
+
+  .rex-unit-chip,
+  .rex-unitplan__info {
+    left: 4vw;
+  }
+
+  .rex-unitplan__image {
+    max-width: 92%;
+    max-height: 68%;
+  }
 }

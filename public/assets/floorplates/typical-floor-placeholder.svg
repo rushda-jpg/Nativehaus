@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-label="Typical floor plate schematic">
+  <defs>
+    <style>
+      .nh-outline { fill: #17181c; stroke: #55503f; stroke-width: 3; }
+      .nh-corridor { fill: #1d1e22; }
+      .nh-bay-line { stroke: #3a3a3e; stroke-width: 1.5; }
+      .nh-core { fill: #232427; stroke: #55503f; stroke-width: 2; }
+      .nh-label { fill: #8f8a7d; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 20px; letter-spacing: 0.08em; }
+      .nh-caption { fill: #6b6659; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 16px; letter-spacing: 0.05em; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1000" fill="#0c0d10" />
+
+  <!-- Building outline: bottom-right corner rounded, matching the real
+       plot's road-facing fillet — a schematic gesture, not a survey. -->
+  <path
+    class="nh-outline"
+    d="M60,65 L1540,65 L1540,865 A70,70 0 0 1 1470,935 L60,935 Z"
+  />
+
+  <!-- Central double-loaded corridor -->
+  <rect class="nh-corridor" x="60" y="460" width="1480" height="80" />
+
+  <!-- Lift / stair core -->
+  <rect class="nh-core" x="740" y="440" width="120" height="120" />
+  <text class="nh-label" x="800" y="510" text-anchor="middle">CORE</text>
+
+  <!-- Generic bay divisions (upper row) -->
+  <line class="nh-bay-line" x1="245" y1="65" x2="245" y2="460" />
+  <line class="nh-bay-line" x1="430" y1="65" x2="430" y2="460" />
+  <line class="nh-bay-line" x1="615" y1="65" x2="615" y2="460" />
+  <line class="nh-bay-line" x1="985" y1="65" x2="985" y2="460" />
+  <line class="nh-bay-line" x1="1170" y1="65" x2="1170" y2="460" />
+  <line class="nh-bay-line" x1="1355" y1="65" x2="1355" y2="460" />
+
+  <!-- Generic bay divisions (lower row) -->
+  <line class="nh-bay-line" x1="245" y1="540" x2="245" y2="935" />
+  <line class="nh-bay-line" x1="430" y1="540" x2="430" y2="935" />
+  <line class="nh-bay-line" x1="615" y1="540" x2="615" y2="935" />
+  <line class="nh-bay-line" x1="985" y1="540" x2="985" y2="935" />
+  <line class="nh-bay-line" x1="1170" y1="540" x2="1170" y2="935" />
+
+  <text class="nh-caption" x="60" y="975">SCHEMATIC — PLACEHOLDER PLATE, PENDING FINAL DRAWINGS</text>
+</svg>
